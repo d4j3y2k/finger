@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
-cd "$(dirname "$0")/.."
+# realpath gives the folder's on-disk capitalization. The shared Swift module
+# cache breaks if one checkout is built as both ~/Developer and ~/developer.
+cd "$(realpath "$(dirname "$0")/..")"
 ./scripts/build.sh
 build="$PWD/build"
 archive="$build/Finger-macOS-$(uname -m).zip"
