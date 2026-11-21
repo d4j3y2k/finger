@@ -6,10 +6,10 @@ The Finger MCP tools also let a connected agent read the current selection from 
 
 ## Start in this workspace
 
-Finger is registered for **/Users/davidkim/Developer/finger**. Open a new Codex chat in this project or start Claude Code from its directory. The project’s `.codex/config.toml` configures Codex, and its `.mcp.json` configures Claude Code. Both clients show the server as `finger`. For your first interactive Claude session, accept its project trust and Finger MCP prompts as they appear. Use `/mcp` to inspect the active tools. [Codex MCP setup](https://developers.openai.com/codex/mcp/) · [Claude Code MCP setup](https://code.claude.com/docs/en/mcp)
+Each build registers Finger for the checkout it was built from. Open a new Codex chat in this project or start Claude Code from its directory. The project’s `.codex/config.toml` configures Codex, and its `.mcp.json` configures Claude Code. `scripts/build.sh` writes both with this checkout’s path, so they stay correct if you move the folder and rebuild. Both clients show the server as `finger`. For your first interactive Claude session, accept its project trust and Finger MCP prompts as they appear. Use `/mcp` to inspect the active tools. [Codex MCP setup](https://developers.openai.com/codex/mcp/) · [Claude Code MCP setup](https://code.claude.com/docs/en/mcp)
 
 ```sh
-cd /Users/davidkim/Developer/finger
+cd /path/to/finger
 codex mcp get finger
 claude mcp get finger
 ```
@@ -23,11 +23,11 @@ claude mcp remove finger --scope project
 
 ## Use Finger from other projects
 
-For account-wide local access, use the corresponding command, then open a fresh session. The Codex CLI and desktop app on the same Codex host share MCP configuration. In the desktop app you can also choose **Settings → MCP servers → Add server**, name it `finger`, select **STDIO**, enter the executable path as **Command**, save, and restart the server. [Codex MCP setup](https://developers.openai.com/codex/mcp/)
+For account-wide local access, use the corresponding command, then open a fresh session. Replace `/path/to/Finger.app` with the app’s location, or copy the commands from **Help → Agent Connection**, which fills in the path of the running app. The Codex CLI and desktop app on the same Codex host share MCP configuration. In the desktop app you can also choose **Settings → MCP servers → Add server**, name it `finger`, select **STDIO**, enter the executable path as **Command**, save, and restart the server. [Codex MCP setup](https://developers.openai.com/codex/mcp/)
 
 ```sh
-codex mcp add finger -- "/Users/davidkim/Developer/finger/build/Finger.app/Contents/MacOS/finger-mcp"
-claude mcp add --scope user --transport stdio finger -- "/Users/davidkim/Developer/finger/build/Finger.app/Contents/MacOS/finger-mcp"
+codex mcp add finger -- "/path/to/Finger.app/Contents/MacOS/finger-mcp"
+claude mcp add --scope user --transport stdio finger -- "/path/to/Finger.app/Contents/MacOS/finger-mcp"
 ```
 
 To disconnect a user-wide registration, run `codex mcp remove finger` or `claude mcp remove finger --scope user`.
@@ -35,8 +35,8 @@ To disconnect a user-wide registration, run `codex mcp remove finger` or `claude
 For a single terminal session in another directory, supply only the corresponding launch command.
 
 ```sh
-codex -c 'mcp_servers.finger.command="/Users/davidkim/Developer/finger/build/Finger.app/Contents/MacOS/finger-mcp"'
-claude --mcp-config '{"mcpServers":{"finger":{"command":"/Users/davidkim/Developer/finger/build/Finger.app/Contents/MacOS/finger-mcp"}}}'
+codex -c 'mcp_servers.finger.command="/path/to/Finger.app/Contents/MacOS/finger-mcp"'
+claude --mcp-config '{"mcpServers":{"finger":{"command":"/path/to/Finger.app/Contents/MacOS/finger-mcp"}}}'
 ```
 
 ## Claude Desktop
@@ -47,7 +47,7 @@ In Claude Desktop, open **Settings → Developer → Edit Config**. Add `finger`
 {
   "mcpServers": {
     "finger": {
-      "command": "/Users/davidkim/Developer/finger/build/Finger.app/Contents/MacOS/finger-mcp"
+      "command": "/path/to/Finger.app/Contents/MacOS/finger-mcp"
     }
   }
 }
@@ -72,7 +72,7 @@ The bridge uses stdio and a private, user-owned Unix socket. Collection requests
 The reproducible live test uses the selected basenames as a guard before it opens a collection. Replace the two example names with the exact files highlighted in the window.
 
 ```sh
-cd /Users/davidkim/Developer/finger
+cd /path/to/finger
 python3 bridge/tests/roundtrip.py --codex --expect "Overlap 01.png" "Overlap 01.svg" --name "Delivery pair"
 ```
 

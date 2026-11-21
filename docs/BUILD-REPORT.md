@@ -1,6 +1,6 @@
 # Finger 0.1.0
 
-Open **`/Users/davidkim/Developer/finger/build/Finger.app`**. The portable copy is **`/Users/davidkim/Developer/finger/build/Finger-macOS-arm64.zip`**. Finger uses Rust for the executable, filesystem operations, search and history. The window uses AppKit and Quick Look.
+Open **`build/Finger.app`**. The portable copy is **`build/Finger-macOS-arm64.zip`**. Finger uses Rust for the executable, filesystem operations, search and history. The window uses AppKit and Quick Look.
 
 ## Try it in 60 seconds
 
@@ -22,5 +22,3 @@ With a pointer, click a contact-sheet thumbnail to enter at that file, Command-c
 ## Build and limits
 
 Run `./scripts/build.sh` and `./scripts/package.sh` from the project root. The ZIP was extracted to a different directory, launched there and verified with its own MCP helper. The release is ad-hoc signed for Apple silicon, targets macOS 14+, and was tested on an M4 Pro with macOS 26.5.2. Physical multitouch and the separate Claude Desktop client remain unverified. Native drag/drop and swipe tests passed. [Build instructions](../README.md#build-and-package)
-
-The requested window began at 2:54 p.m. EST on November 20. The app, ZIP, live client tests and endurance runs landed within three hours. A stalled window-control session delayed final packaging and handoff until November 21.

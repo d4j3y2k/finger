@@ -56,7 +56,7 @@ Move and Copy suggest real folders in the current project first. **Keep Both** c
 
 ## Agent collections
 
-Codex and Claude Code are configured for this checkout. Select files on the Worktable or in the file browser and ask the connected agent to make a named collection from the selection. Collections open in the same window. Each row shows its original folder so identically named files are distinguishable. Right-click a collection to rename or remove it.
+Each build configures Codex and Claude Code for this checkout. Select files on the Worktable or in the file browser and ask the connected agent to make a named collection from the selection. Collections open in the same window. Each row shows its original folder so identically named files are distinguishable. Right-click a collection to rename or remove it.
 
 **Help → Agent Connection** gives registration commands for the running bundle. The connection guide includes exact project settings, setup from other directories, Claude Desktop instructions and verification results. [Agent connection guide](docs/AGENTS-CONNECTION.md)
 
@@ -72,8 +72,9 @@ When the app process has a TypeSafe credential in `FINGER_JEV_API_KEY` or `TYPES
 
 The source build uses a stable Rust toolchain with Cargo, Xcode command-line tools with a macOS SDK, and Python 3 for assembly. This checkout includes a project-local build toolchain under `build/toolchain` that the build script discovers when Cargo is absent from PATH. A clean checkout can use Rust from [rustup](https://rustup.rs/).
 
+From the project folder:
+
 ```sh
-cd ~/Developer/finger
 ./scripts/build.sh
 open build/Finger.app
 ```

@@ -49,4 +49,5 @@ else:
     os.rename(src, dst)
 PYTHON
 codesign --verify --deep --strict "$build/Finger.app"
+python3 scripts/register-agents.py
 echo "$build/Finger.app"
