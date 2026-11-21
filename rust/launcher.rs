@@ -2,7 +2,7 @@ use finger_core::navigation::{Navigation, SearchIndex, drop_index, query_index};
 use serde_json::{Value, json};
 use std::ffi::{CStr, CString, c_char, c_void};
 use std::path::Path;
-use std::sync::{LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex, MutexGuard};
 
 static NAV: LazyLock<Mutex<Navigation>> = LazyLock::new(|| Mutex::new(Navigation::default()));
 static SEARCH: LazyLock<Mutex<SearchIndex>> = LazyLock::new(|| Mutex::new(SearchIndex::default()));
@@ -34,6 +34,18 @@ unsafe extern "C" {
     );
 }
 
+/// `request` catches a handler panic, which poisons the lock that handler held.
+/// The state may be half-updated, so start it fresh instead of failing every
+/// later navigation or search request for the rest of the session.
+fn lock<T: Default>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(|poisoned| {
+        let mut guard = poisoned.into_inner();
+        *guard = T::default();
+        mutex.clear_poison();
+        guard
+    })
+}
+
 extern "C" fn request(service: i32, payload: *const c_char) -> *mut c_char {
     if payload.is_null() {
         return std::ptr::null_mut();
@@ -48,12 +60,9 @@ extern "C" fn request(service: i32, payload: *const c_char) -> *mut c_char {
             Err(_) => return json!({"ok":false,"error":"Invalid request"}).to_string(),
         };
         let reply = match service {
-            1 => NAV.lock().unwrap().handle(&p),
-            2 => SEARCH.lock().unwrap().install(&p["names"]),
-            3 => SEARCH
-                .lock()
-                .unwrap()
-                .find(p["query"].as_str().unwrap_or("")),
+            1 => lock(&NAV).handle(&p),
+            2 => lock(&SEARCH).install(&p["names"]),
+            3 => lock(&SEARCH).find(p["query"].as_str().unwrap_or("")),
             _ => json!({"ok":false,"error":"Unknown service"}),
         };
         reply.to_string()
@@ -163,6 +172,22 @@ mod tests {
     use super::*;
     use std::ptr::{null, null_mut};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn a_poisoned_lock_resets_its_state_instead_of_failing_forever() {
+        let state = std::sync::Arc::new(Mutex::new(vec![1, 2, 3]));
+        let held = state.clone();
+        let _ = std::thread::spawn(move || {
+            let _guard = held.lock().unwrap();
+            panic!("handler failed mid-update");
+        })
+        .join();
+        assert!(state.is_poisoned());
+        assert!(super::lock(&state).is_empty());
+        assert!(!state.is_poisoned());
+        super::lock(&state).push(4);
+        assert_eq!(*super::lock(&state), vec![4]);
+    }
 
     extern "C" fn record(
         ctx: *mut c_void,
