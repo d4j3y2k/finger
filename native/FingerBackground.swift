@@ -208,8 +208,13 @@ final class FingerStatusMenu: NSObject, NSMenuDelegate {
   let openWindow: CommandItem
   let shortcut: CommandItem
   let login = NSMenuItem(title: "Open at Login", action: nil, keyEquivalent: "")
+  /// Working On and the trail of blue dots, from activity on this Mac. On by default.
+  let activity = NSMenuItem(title: "Use Activity", action: nil, keyEquivalent: "")
+  /// The front window's document, through Accessibility. Off by default.
+  let documents = NSMenuItem(title: "Use App Documents…", action: nil, keyEquivalent: "")
   let quit: CommandItem
   var loginItem: FingerLoginItem
+  let awareness: AwarenessSettings
   var shortcuts: () -> PanelShortcuts? = { PanelShortcuts.shared }
   /// Shown when Open at Login can't be changed.
   var report: (String) -> Void = { NSLog("Finger: %@", $0) }
@@ -218,9 +223,10 @@ final class FingerStatusMenu: NSObject, NSMenuDelegate {
   init(
     loginItem: FingerLoginItem = FingerLoginItem(), showPanel: @escaping () -> Void,
     openWindow: @escaping () -> Void, editShortcut: @escaping () -> Void,
-    quit: @escaping () -> Void
+    quit: @escaping () -> Void, awareness: AwarenessSettings = .shared
   ) {
     self.loginItem = loginItem
+    self.awareness = awareness
     // Let the menu close before the panel takes the keyboard.
     self.showPanel = CommandItem("Show Finger Panel") { DispatchQueue.main.async(execute: showPanel) }
     self.openWindow = CommandItem("Open Finger Window", openWindow)
@@ -229,7 +235,16 @@ final class FingerStatusMenu: NSObject, NSMenuDelegate {
     super.init()
     login.target = self
     login.action = #selector(loginChosen)
-    for entry in [self.showPanel, self.openWindow, NSMenuItem.separator(), shortcut, login, NSMenuItem.separator(), self.quit] {
+    activity.target = self
+    activity.action = #selector(activityChosen)
+    activity.toolTip = "Working On and the blue dots, from what you do on this Mac. Nothing is sent anywhere."
+    documents.target = self
+    documents.action = #selector(documentsChosen)
+    documents.toolTip = "Also read the front window’s document. macOS asks for Accessibility."
+    for entry in [
+      self.showPanel, self.openWindow, NSMenuItem.separator(), shortcut, login, NSMenuItem.separator(),
+      activity, documents, NSMenuItem.separator(), self.quit,
+    ] {
       menu.addItem(entry)
     }
     menu.delegate = self
@@ -242,10 +257,25 @@ final class FingerStatusMenu: NSObject, NSMenuDelegate {
   /// The current shortcut and the real login item state.
   func refresh() {
     login.state = loginItem.isEnabled ? .on : .off
+    activity.state = awareness.useActivity ? .on : .off
+    documents.state = awareness.useActivity && awareness.useDocuments ? .on : .off
+    documents.isEnabled = awareness.useActivity
     if let shortcuts = shortcuts() { shortcuts.decorate(showPanel) }
   }
 
   @objc private func loginChosen() { toggleLogin() }
+
+  /// Turning it off stops collecting and forgets everything collected.
+  @objc private func activityChosen() {
+    awareness.useActivity.toggle()
+    refresh()
+  }
+
+  /// Turning it on asks macOS for Accessibility if Finger doesn't have it yet.
+  @objc private func documentsChosen() {
+    awareness.useDocuments.toggle()
+    refresh()
+  }
 
   func toggleLogin() {
     do {

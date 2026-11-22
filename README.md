@@ -18,6 +18,8 @@ You can also drop a folder onto the app icon, or open a group of files with `ope
 
 Press **⌃Space** from any app for Finger's search panel: type to find a file or folder, **↩** to open it or step in, **⌫** to go back up, and **esc** to close. **Finger → Panel Shortcut…** (also in the menu bar item) changes the shortcut.
 
+**Working On** at the top of Home lists the files or projects you are busy with, each with a short reason such as "Edited 12 min ago". Blue dots mark the folders that lead there, so entering a folder lands on the trail after where you left off, and the folder preview says why it matters. The footer names your top projects. Click it to see what Finger knows. Finger works this out on your Mac from Spotlight's recently used files, saves in your home folder, the app in front, the folders your shells and Claude Code or Codex sessions are in, and git. None of it is sent anywhere. **Use Activity** in the menu bar item turns this off and forgets what was collected. **Use App Documents…** adds the front window's document and asks for Accessibility. `./scripts/awareness-probe.sh` prints what Finger would show right now, without changing anything.
+
 To keep Finger running in the background with Open at Login, install it from the project folder:
 
 ```sh

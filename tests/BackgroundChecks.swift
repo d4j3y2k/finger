@@ -172,7 +172,10 @@ private func statusMenu(_ root: URL) {
   menu.refresh()
   let titles = menu.menu.items.map { $0.isSeparatorItem ? "—" : $0.title }
   check(
-    titles == ["Show Finger Panel", "Open Finger Window", "—", "Panel Shortcut…", "Open at Login", "—", "Quit Finger"],
+    titles == [
+      "Show Finger Panel", "Open Finger Window", "—", "Panel Shortcut…", "Open at Login", "—", "Use Activity",
+      "Use App Documents…", "—", "Quit Finger",
+    ],
     "the menu bar item's menu", titles)
   check(menu.showPanel.keyEquivalent == " " && menu.showPanel.keyEquivalentModifierMask == [.control], "Show Finger Panel shows ⌃Space")
   check(menu.login.state == .off, "Open at Login is unchecked while it is off")

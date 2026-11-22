@@ -18,6 +18,8 @@ extension PanelController {
       heldKeys.append(event)
       return true
     }
+    // Any key but esc puts "What Finger knows" away and carries on.
+    if knowledgeShown, event.keyCode != 53 { hideKnowledge() }
     let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
     // After a click into the preview to select text, typing goes back to the
     // search field. Arrows, ↩, esc and ⇥ work from anywhere; ⌘C still copies.
@@ -89,6 +91,7 @@ extension PanelController {
 
   func escape() {
     if closeQuickLook() { return }
+    if hideKnowledge() { return }
     if escapeHides {
       hide()
       return
@@ -240,6 +243,7 @@ extension PanelController {
   // MARK: - Mouse
 
   func click(_ row: Int, _ clicks: Int, _ point: NSPoint) {
+    hideKnowledge()
     guard row >= 0, row < rows.count, let item = rows[row].item else { return }
     finishMotion()
     userMoved = true
@@ -296,6 +300,7 @@ extension PanelController {
       cell.subtitle = item.subtitle ?? (item.file.isFolder ? count(item.file) : PanelText.details(item.file))
       cell.side = item.side ?? PanelText.ago(touched(item.file))
       cell.folder = item.file.isFolder
+      cell.dot = awarenessDot(item)
       cell.chosen = row == selectedRow
       cell.hovered = row == hoveredRow
       cell.concealed = item.file.path == concealedPath

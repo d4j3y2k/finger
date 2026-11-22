@@ -32,6 +32,10 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
 
   /// Hook for the "Working On" section, listed first on Home. Nil in phase 1.
   var workingOn: (() -> [PanelFile])?
+  /// What you are working on: fills Working On and adds blue dots, landing on
+  /// the trail, why lines and the footer status. Nil turns all of that off.
+  var awareness: PanelAwareness? { didSet { awarenessInstalled(oldValue) } }
+  let knowledgeView = PanelKnowledgeView()
   /// Hides the panel when it stops being the key window.
   var hidesOnResignKey = true
   var allowsMotion = true
@@ -254,6 +258,7 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
   func show(onScreen: Bool) {
     escapeHides = false
     if !panel.isVisible {
+      awareness?.panelWillShow()
       found.removeAll()
       foundOrder.removeAll()
       refreshHome()
@@ -286,9 +291,11 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
   func hide() {
     finishMotion()
     closeQuickLook()
+    hideKnowledge()
     cancelSearches()
     releaseHeldKeys()
     panel.orderOut(nil)
+    awareness?.panelDidHide()
   }
 
   func focusField(selectAll: Bool) {
@@ -315,6 +322,7 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
       guard let self else { return }
       self.usage = files
       self.indexUsage()
+      self.awareness?.noteUsage(files)
       if self.folder == nil && self.trimmedQuery.isEmpty {
         self.rebuild(self.userMoved ? .keep : .path(self.homeSelected))
       }
@@ -361,7 +369,7 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
   }
 
   func touched(_ file: PanelFile) -> Date? {
-    [usedDate(file), file.modified, file.added].compactMap { $0 }.max()
+    [usedDate(file), file.modified, file.added, awarenessSnapshot.latest[file.path]].compactMap { $0 }.max()
   }
 
   /// Newer use first, then newer changes.
@@ -383,6 +391,7 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
   func landing(_ folder: String) -> String? {
     guard let list = listings[folder], !list.isEmpty else { return nil }
     if let last = remembered[folder], list.contains(where: { $0.path == last }) { return last }
+    if let trail = awarenessLanding(list) { return trail }
     return list.min { newer($0, $1) ?? false }?.path
   }
 
@@ -534,7 +543,7 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
           items: working.map {
             PanelItem(
               file: $0, origin: .home, subtitle: place.whereText($0.path),
-              side: PanelText.ago(touched($0)))
+              side: awarenessSide($0) ?? PanelText.ago(touched($0)))
           }))
     }
     var shown = Set(sections.flatMap(\.items).map(\.file.path))
@@ -797,18 +806,20 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
     let text = trimmedQuery
     if let folder {
       let busy = !text.isEmpty && searching(folder, text)
-      footer.status = place.abbreviated(folder) + (busy ? " · Searching…" : "")
+      footer.status =
+        (text.isEmpty ? awarenessStatus : nil) ?? place.abbreviated(folder) + (busy ? " · Searching…" : "")
     } else if text.isEmpty {
       footer.status =
         shortcuts.map { !$0.registered } == true
         ? "\(shortcut.display) isn’t available · Finger › Panel Shortcut…"
-        : "\(shortcut.display) shows and hides this panel"
+        : awarenessStatus ?? "\(shortcut.display) shows and hides this panel"
     } else if searching(home, text) {
       footer.status = "Searching…"
     } else {
       let n = rows.filter { $0.item != nil }.count
       footer.status = n == 1 ? "1 result" : "\(n) results"
     }
+    footer.aware = awarenessStatus != nil && footer.status == awarenessStatus
     var hints: [PanelHint] = []
     if let item = selectedItem {
       hints.append(PanelHint(keys: "↩", label: "Open", action: .activate))
@@ -853,7 +864,7 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
         subtitle: [total.map(PanelText.count) ?? count(file), place.name(parent == home ? home : parent)]
           .joined(separator: " · "),
         items: list.map { Array($0.prefix(PanelFolderPeek.rows)) }, total: total ?? 0,
-        landing: landing(file.path))
+        landing: landing(file.path), why: awarenessSnapshot.why(folder: file.path))
     } else {
       peek.isHidden = true
       peek.content = nil

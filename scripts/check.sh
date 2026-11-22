@@ -36,6 +36,12 @@ swift=(xcrun swiftc -swift-version 5 -module-cache-path "$PWD/build/ModuleCache"
 "${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/PanelChecks.swift -o "$stage/panel"
 mkdir -p build/panel-checks
 "$stage/panel" "${CARGO_TARGET_DIR:-target}/release/finger-core" "$PWD/build/panel-checks"
+# Working On: the awareness model with fake signal sources and a fake clock,
+# its two menu switches and "What Finger knows", then the panel's Working On,
+# blue dots and landing over a fixture home. PNGs go to build/awareness-checks.
+"${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/AwarenessChecks.swift -o "$stage/awareness"
+mkdir -p build/awareness-checks
+"$stage/awareness" "${CARGO_TARGET_DIR:-target}/release/finger-core" "$PWD/build/awareness-checks"
 # Renders ContentPreview offscreen and leaves PNGs in build/content-preview to review.
 "${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/ContentPreviewChecks.swift -o "$stage/content-preview"
 "$stage/content-preview" "$PWD/build/content-preview"

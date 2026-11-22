@@ -4,6 +4,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
   let engine: Engine
   var browser: Browser?
   private var panel: PanelController?
+  private var awareness: AwarenessCenter?
   private var shortcuts: PanelShortcuts?
   private var presence: FingerPresence?
   private var statusMenu: FingerStatusMenu?
@@ -111,6 +112,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     let controller = PanelController(engine: engine)
     panel = controller
     PanelController.shared = controller
+    // Working On, from signals on this Mac. Use Activity in the menu bar item turns it off.
+    let awareness = AwarenessCenter.live(search: controller.search)
+    self.awareness = awareness
+    controller.awareness = awareness
+    awareness.start()
     let shortcuts = PanelShortcuts { [weak controller] in controller?.toggle() }
     self.shortcuts = shortcuts
     PanelShortcuts.shared = shortcuts

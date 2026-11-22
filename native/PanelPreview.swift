@@ -29,6 +29,8 @@ final class PanelFolderPeek: NSView {
     var items: [PanelFile]?
     var total: Int
     var landing: String?
+    /// Why this folder matters to what you are working on, with a blue dot.
+    var why: String? = nil
   }
   override var isFlipped: Bool { true }
   let header = ContentHeader()
@@ -46,6 +48,8 @@ final class PanelFolderPeek: NSView {
   }
   /// The right-hand text of an item: a size or an item count.
   var side: (PanelFile) -> String = { _ in "" }
+  /// Items that get a blue dot after their name.
+  var marked: (String) -> Bool = { _ in false }
   var onPick: ((String) -> Void)?
   private var rowRects: [(NSRect, String)] = []
   private var hovered: String? { didSet { if hovered != oldValue { needsDisplay = true } } }
@@ -65,8 +69,26 @@ final class PanelFolderPeek: NSView {
   /// The same side margin as ContentPreview at this width.
   private var margin: CGFloat { ContentMetrics(roomy: bounds.width >= 520).side }
 
-  /// Where the first item row starts, below the header.
-  var firstRowY: CGFloat { header.height + 7 }
+  /// Where the first item row starts, below the header and the why line.
+  var firstRowY: CGFloat {
+    guard let why = whyText else { return header.height + 7 }
+    return header.height + 10 + PanelFolderPeek.height(of: why, width: whyWidth) + 10
+  }
+
+  private static let whyFont = NSFont.systemFont(ofSize: 12)
+  private var whyText: NSAttributedString? {
+    guard let why = content?.why, !why.isEmpty else { return nil }
+    let style = NSMutableParagraphStyle()
+    style.lineBreakMode = .byWordWrapping
+    style.lineSpacing = 2
+    return NSAttributedString(
+      string: why,
+      attributes: [.font: PanelFolderPeek.whyFont, .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: style])
+  }
+  private var whyWidth: CGFloat { max(40, bounds.width - margin * 2 - 13) }
+  private static func height(of text: NSAttributedString, width: CGFloat) -> CGFloat {
+    ceil(text.boundingRect(with: NSSize(width: width, height: 200), options: [.usesLineFragmentOrigin]).height)
+  }
 
   override func layout() {
     super.layout()
@@ -88,6 +110,13 @@ final class PanelFolderPeek: NSView {
         in: NSRect(x: 0, y: firstRowY + 10, width: b.width, height: 18))
       return
     }
+    if let why = whyText {
+      let top = header.height + 10
+      NSColor.controlAccentColor.setFill()
+      NSBezierPath(ovalIn: NSRect(x: inset, y: top + 6, width: 5, height: 5)).fill()
+      let height = PanelFolderPeek.height(of: why, width: whyWidth)
+      why.draw(with: NSRect(x: inset + 13, y: top, width: whyWidth, height: height), options: [.usesLineFragmentOrigin])
+    }
     var y = firstRowY
     let h = PanelFolderPeek.rowHeight
     for item in items.prefix(PanelFolderPeek.rows) {
@@ -107,9 +136,15 @@ final class PanelFolderPeek: NSView {
       let sideWidth = min(110, PanelDraw.width(sideText))
       PanelDraw.line(sideText, in: NSRect(x: right - 7 - sideWidth, y: y, width: sideWidth, height: h))
       let nameX = inset + 25
-      PanelDraw.line(
-        PanelDraw.text(item.name, .systemFont(ofSize: 12), .labelColor),
-        in: NSRect(x: nameX, y: y, width: right - 7 - sideWidth - 12 - nameX, height: h))
+      let dotted = marked(item.path)
+      let nameText = PanelDraw.text(item.name, .systemFont(ofSize: 12), .labelColor)
+      let nameRoom = right - 7 - sideWidth - 12 - nameX - (dotted ? 11 : 0)
+      PanelDraw.line(nameText, in: NSRect(x: nameX, y: y, width: nameRoom, height: h))
+      if dotted {
+        NSColor.controlAccentColor.setFill()
+        let x = nameX + min(PanelDraw.width(nameText), nameRoom) + 6
+        NSBezierPath(ovalIn: NSRect(x: x, y: y + ((h - 5) / 2).rounded(), width: 5, height: 5)).fill()
+      }
       rowRects.append((r, item.path))
       y += h
     }

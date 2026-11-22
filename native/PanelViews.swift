@@ -98,6 +98,8 @@ final class PanelItemCell: NSView {
   var subtitle = ""
   var side = ""
   var folder = false
+  /// A blue dot before the side text: this leads to what you are working on.
+  var dot = false
   var chosen = false { didSet { if chosen != oldValue { needsDisplay = true } } }
   var hovered = false { didSet { if hovered != oldValue { needsDisplay = true } } }
   /// Hidden while a flying copy of the icon and name lands here.
@@ -141,8 +143,14 @@ final class PanelItemCell: NSView {
       PanelDraw.line(
         sideText, in: NSRect(x: textRight - sideWidth, y: 0, width: sideWidth, height: b.height))
     }
+    let dotRoom: CGFloat = dot ? 11 : 0
+    if dot {
+      let x = textRight - sideWidth - (sideWidth > 0 ? 6 : 0) - 5
+      (chosen ? PanelInk.onAccent : NSColor.controlAccentColor).setFill()
+      NSBezierPath(ovalIn: NSRect(x: x, y: ((b.height - 5) / 2).rounded(), width: 5, height: 5)).fill()
+    }
     let textX = PanelItemCell.iconX + 22 + 8
-    let textWidth = max(0, textRight - (sideWidth > 0 ? sideWidth + 10 : 0) - textX)
+    let textWidth = max(0, textRight - (sideWidth > 0 ? sideWidth + 10 : 0) - dotRoom - textX)
     if !concealed {
       PanelDraw.icon(icon, in: iconFrame, flipped: true)
       let title = PanelDraw.text(name, .systemFont(ofSize: 13), primary)
@@ -398,6 +406,12 @@ final class PanelFooter: NSView {
   var status = "" { didSet { if status != oldValue { needsDisplay = true } } }
   var hints: [PanelHint] = [] { didSet { if hints != oldValue { needsDisplay = true } } }
   var onHint: ((PanelAction) -> Void)?
+  /// The status says what you are working on: a blue dot, and a click opens "What Finger knows".
+  var aware = false { didSet { if aware != oldValue { needsDisplay = true } } }
+  var statusOpen = false { didSet { if statusOpen != oldValue { needsDisplay = true } } }
+  var onStatus: (() -> Void)?
+  private(set) var statusRect: NSRect = .zero
+  private var statusHovered = false { didSet { if statusHovered != oldValue { needsDisplay = true } } }
   private(set) var hintRects: [NSRect] = []
   private var hovered: Int? { didSet { if hovered != oldValue { needsDisplay = true } } }
   private var tracking: NSTrackingArea?
@@ -433,17 +447,30 @@ final class PanelFooter: NSView {
         PanelDraw.text(hint.label, PanelFooter.font, hovered == i ? .labelColor : .secondaryLabelColor),
         in: NSRect(x: r.minX + 6 + kw + 5, y: r.minY, width: r.maxX - 6 - (r.minX + 11 + kw), height: r.height))
     }
-    let left: CGFloat = 16
+    var left: CGFloat = 16
     let limit = (hintRects.first?.minX ?? bounds.width) - 12
-    PanelDraw.line(
-      PanelDraw.text(status, PanelFooter.font, .secondaryLabelColor),
-      in: NSRect(x: left, y: 0, width: max(0, limit - left), height: bounds.height))
+    let statusText = PanelDraw.text(status, PanelFooter.font, .secondaryLabelColor)
+    statusRect = .zero
+    if aware {
+      let width = min(limit - 10, 6 + 6 + 7 + PanelDraw.width(statusText) + 6)
+      statusRect = NSRect(x: 10, y: (bounds.height - 22) / 2, width: max(0, width), height: 22)
+      if statusHovered || statusOpen {
+        PanelInk.hover.setFill()
+        NSBezierPath(roundedRect: statusRect, xRadius: 6, yRadius: 6).fill()
+      }
+      NSColor.controlAccentColor.setFill()
+      NSBezierPath(ovalIn: NSRect(x: 16, y: (bounds.height - 6) / 2, width: 6, height: 6)).fill()
+      left = 16 + 6 + 7
+    }
+    PanelDraw.line(statusText, in: NSRect(x: left, y: 0, width: max(0, limit - left), height: bounds.height))
   }
 
   override func mouseDown(with event: NSEvent) {
     let p = convert(event.locationInWindow, from: nil)
     if let i = hintRects.firstIndex(where: { $0.contains(p) }), i < hints.count {
       onHint?(hints[i].action)
+    } else if aware, statusRect.contains(p) {
+      onStatus?()
     }
   }
   override func updateTrackingAreas() {
@@ -458,8 +485,12 @@ final class PanelFooter: NSView {
   override func mouseMoved(with event: NSEvent) {
     let p = convert(event.locationInWindow, from: nil)
     hovered = hintRects.firstIndex { $0.contains(p) }
+    statusHovered = aware && statusRect.contains(p)
   }
-  override func mouseExited(with event: NSEvent) { hovered = nil }
+  override func mouseExited(with event: NSEvent) {
+    hovered = nil
+    statusHovered = false
+  }
 }
 
 // MARK: - Motion
