@@ -6,11 +6,14 @@ Finger opens to a native Mac worktable with visual previews of files from your c
 
 ## Launch
 
-Open **build/Finger.app**. Choose **Change project** to use your own folder. **Browse folders** (**⌘2**) opens the file browser, and **Worktable** (**⌘1**) brings you back.
+Finger runs on macOS 14 or later and has been tested on Apple silicon. Build it from the project folder, then open it. Building needs [Rust](https://rustup.rs/) and the Xcode command-line tools. [Build and package](#build-and-package) has the details.
 
 ```sh
+./scripts/build.sh
 open build/Finger.app
 ```
+
+Choose **Change project** to use your own folder. **Browse folders** (**⌘2**) opens the file browser, and **Worktable** (**⌘1**) brings you back.
 
 You can also drop a folder onto the app icon, or open a group of files with `open -a /path/to/Finger.app`. Files from one folder arrive selected together. Files from different folders open as a collection.
 
@@ -18,7 +21,7 @@ You can also drop a folder onto the app icon, or open a group of files with `ope
 
 Press **⌃Space** from any app for Finger's search panel: type to find a file or folder, **↩** to open it or step in, **⌫** to go back up, and **esc** to close. **Finger → Panel Shortcut…** (also in the menu bar item) changes the shortcut.
 
-**Working On** at the top of Home lists the files or projects you are busy with, each with a short reason such as "Edited 12 min ago". Blue dots mark the folders that lead there, so entering a folder lands on the trail after where you left off, and the folder preview says why it matters. The footer names your top projects. Click it to see what Finger knows. Finger works this out on your Mac from Spotlight's recently used files, saves in your home folder, the app in front, the folders your shells and Claude Code or Codex sessions are in, and git. None of it is sent anywhere. **Use Activity** in the menu bar item turns this off and forgets what was collected. **Use App Documents…** adds the front window's document and asks for Accessibility. `./scripts/awareness-probe.sh` prints what Finger would show right now, without changing anything.
+**Working On** at the top of Home lists the files or projects you are busy with, each with a short reason such as "Edited 12 min ago". Blue dots mark the folders that lead there, so entering a folder lands on the trail after where you left off, and the folder preview says why it matters. The footer names your top projects. Click it to see what Finger knows. Finger works this out on your Mac from Spotlight's recently used files, saves in your home folder, the app in front, the folders your shells and Claude Code or Codex sessions are in (read from their running processes), and git. Working On sends none of this anywhere. It runs `git status` only in repositories whose own config can't make git run a program, so a repo that arrives in a zip can't run code through Finger. **Use Activity** in the menu bar item turns this off and forgets what was collected. Separately, Finger's preferences keep your recent folders, recently opened files, project visits and past moves, so it can suggest destinations. Use Activity doesn't clear those. **Use App Documents…** adds the front window's document and asks for Accessibility. `./scripts/awareness-probe.sh` prints what Finger would show right now, without changing anything.
 
 To keep Finger running in the background with Open at Login, install it from the project folder:
 
@@ -80,9 +83,16 @@ Each build configures Codex and Claude Code for this checkout. Select files on t
 
 **Help → Agent Connection** gives registration commands for the running bundle. The connection guide includes exact project settings, setup from other directories, Claude Desktop instructions and verification results. [Agent connection guide](docs/AGENTS-CONNECTION.md)
 
-## Optional Jev ranking
+## Optional Jev ranking and filing
 
-When the app process has a TypeSafe credential in `FINGER_JEV_API_KEY` or `TYPESAFE_API_KEY`, **Rank with Jev** appears in the destination sheet. Clicking it sends selected basenames and candidate folder names to TypeSafe. You choose and confirm the destination. File contents and absolute paths stay local. To start Finger with that environment, quit any open copy and run the executable from your configured shell.
+Finger can ask Jev, a model from TypeSafe, where files belong. It does so only when it has a TypeSafe key. Add one with **Jev API Key…** in the menu bar item, which stores it in your login Keychain, or set `FINGER_JEV_API_KEY` or `TYPESAFE_API_KEY` in the app's environment. Without a key, Finger sends nothing over the network.
+
+With a key, Finger sends these to TypeSafe:
+
+- **When you click Rank with Jev** in the destination sheet: the selected files' names and the candidate folders' names.
+- **Automatically, for each new download in Downloads**: the file's name, the website it came from (the host only, such as `example.com`), and up to 10 candidate folder names, each with its parent folder's name. Candidates can come from your recent projects. Nothing moves until you confirm it.
+
+File contents and full paths are never sent, and your home folder is sent as "Home". Remove the key to stop both. A `TYPESAFE_API_KEY` you set for another tool also turns this on if you start Finger from that shell. To start Finger with a key from your environment, quit any open copy and run the executable from your configured shell.
 
 ```sh
 ./build/Finger.app/Contents/MacOS/Finger
@@ -90,7 +100,7 @@ When the app process has a TypeSafe credential in `FINGER_JEV_API_KEY` or `TYPES
 
 ## Build and package
 
-The source build uses a stable Rust toolchain with Cargo, Xcode command-line tools with a macOS SDK, and Python 3 for assembly. This checkout includes a project-local build toolchain under `build/toolchain` that the build script discovers when Cargo is absent from PATH. A clean checkout can use Rust from [rustup](https://rustup.rs/).
+The source build uses a stable Rust toolchain with Cargo, Xcode command-line tools with a macOS SDK, and Python 3 for assembly. If `cargo` isn't on your PATH, install Rust with [rustup](https://rustup.rs/).
 
 From the project folder:
 
@@ -107,7 +117,7 @@ The release was built with Rust/Cargo 1.100.0 and Apple Swift 6.3.3 using the ma
 ./scripts/package.sh
 ```
 
-The packaging script verifies the ad-hoc signature, extracts the archive, and verifies the extracted app. It writes **build/Finger-macOS-arm64.zip** on Apple silicon. This build targets macOS 14 or later and was exercised on Apple silicon with macOS 26.5.2. Public notarization and Intel runtime testing are outside this local build.
+The packaging script verifies the ad-hoc signature, extracts the archive, and verifies the extracted app. It writes **build/Finger-macOS-arm64.zip** on Apple silicon. This build targets macOS 14 or later and was exercised on Apple silicon with macOS 26.5.2. It hasn't been tested on Intel Macs. The app is ad-hoc signed, not notarized, so Gatekeeper blocks a copy downloaded from the internet. Build it on the Mac that will run it.
 
 ## Reproduce the checks
 
@@ -138,3 +148,7 @@ The termination suite requests Quit while a real copy is in flight and verifies 
 The performance report records the hardware, data, measurement boundary and before/after timings. [Performance measurements](docs/PERFORMANCE.md)
 
 The build report includes the delivery paths, one-minute practice run, verification results and remaining limits. [Build report](docs/BUILD-REPORT.md)
+
+## License
+
+Finger is released under the [MIT License](LICENSE).
