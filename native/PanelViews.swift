@@ -104,6 +104,9 @@ final class PanelItemCell: NSView {
   var hovered = false { didSet { if hovered != oldValue { needsDisplay = true } } }
   /// Hidden while a flying copy of the icon and name lands here.
   var concealed = false { didSet { if concealed != oldValue { needsDisplay = true } } }
+  /// Filing: "⇥ invoices" or "refs?" on a new download, or Jev's probability in the move list.
+  var filingChip: FilingChip?
+  var probability: Double?
 
   override init(frame: NSRect) {
     super.init(frame: frame)
@@ -136,7 +139,8 @@ final class PanelItemCell: NSView {
         width: size.width, height: size.height)
       PanelDraw.symbol(chevron, in: rect, color: chosen ? PanelInk.onAccentQuiet : .tertiaryLabelColor)
     }
-    let textRight = right - 8 - 9
+    var textRight = right - 8 - 9
+    textRight -= drawFiling(right: textRight, height: b.height)
     let sideText = PanelDraw.text(side, .monospacedDigitSystemFont(ofSize: 11, weight: .regular), quiet)
     let sideWidth = side.isEmpty ? 0 : min(PanelDraw.width(sideText), 150)
     if sideWidth > 0 {
@@ -240,6 +244,8 @@ final class PanelChipsView: NSView {
   var chips: [Chip] = [] { didSet { measure() } }
   var maxWidth: CGFloat = 400 { didSet { if maxWidth != oldValue { measure() } } }
   var hiddenPath: String? { didSet { needsDisplay = true } }
+  /// Move mode's "Move <name> to", shown instead of the path.
+  var pill: String? { didSet { if pill != oldValue { measure() } } }
   var onClick: ((String) -> Void)?
   private(set) var rects: [NSRect] = []
   private(set) var contentWidth: CGFloat = 0
@@ -263,6 +269,13 @@ final class PanelChipsView: NSView {
   }
 
   private func measure() {
+    if let pill {
+      rects = []
+      titleWidths = []
+      contentWidth = PanelChipsView.pillWidth(pill, limit: maxWidth)
+      needsDisplay = true
+      return
+    }
     let separator = PanelDraw.width(PanelDraw.text("›", PanelChipsView.separatorFont, .labelColor))
     let gaps = CGFloat(max(0, chips.count - 1)) * (separator + 10)
     let fixed = chips.reduce(CGFloat(0)) { $0 + ($1.path == nil ? 14 : 34) } + gaps
@@ -285,6 +298,10 @@ final class PanelChipsView: NSView {
   }
 
   override func draw(_ dirtyRect: NSRect) {
+    if let pill {
+      PanelChipsView.drawPill(pill, in: NSRect(x: 0, y: 0, width: contentWidth, height: PanelChipsView.height))
+      return
+    }
     let sep = PanelDraw.text("›", PanelChipsView.separatorFont, .tertiaryLabelColor)
     let sepWidth = PanelDraw.width(sep)
     for (i, chip) in chips.enumerated() where i < rects.count {
@@ -390,8 +407,9 @@ final class PanelGhost: NSTextField {
 
 // MARK: - Footer
 
-enum PanelAction {
+enum PanelAction: Equatable {
   case activate, reveal, quickLook, intoFolder, up
+  case filing(FilingHint)
 }
 
 struct PanelHint: Equatable {

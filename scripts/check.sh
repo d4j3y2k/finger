@@ -36,6 +36,12 @@ swift=(xcrun swiftc -swift-version 5 -module-cache-path "$PWD/build/ModuleCache"
 "${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/PanelChecks.swift -o "$stage/panel"
 mkdir -p build/panel-checks
 "$stage/panel" "${CARGO_TARGET_DIR:-target}/release/finger-core" "$PWD/build/panel-checks"
+# Jev filing for new downloads, over a fixture Downloads folder with a fake Jev
+# transport and key store, moving and undoing through finger-core. It writes
+# light and dark PNGs of Home with chips, the Jev bar and the move list.
+"${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/FilingChecks.swift -o "$stage/filing"
+mkdir -p build/filing-checks
+"$stage/filing" "${CARGO_TARGET_DIR:-target}/release/finger-core" "$PWD/build/filing-checks"
 # Working On: the awareness model with fake signal sources and a fake clock,
 # its two menu switches and "What Finger knows", then the panel's Working On,
 # blue dots and landing over a fixture home. PNGs go to build/awareness-checks.

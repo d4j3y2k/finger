@@ -63,6 +63,15 @@ final class ContentPreview: NSView {
   var headerDetail: String { header.detail.stringValue }
   /// Called on the main thread when a show() has finished loading.
   var onLoad: (() -> Void)?
+  /// A view between the header and the body, at its own height, such as the
+  /// panel's Jev bar above a new download.
+  var accessory: NSView? {
+    didSet {
+      if oldValue !== accessory { oldValue?.removeFromSuperview() }
+      if let accessory, accessory.superview !== self { addSubview(accessory) }
+      needsLayout = true
+    }
+  }
 
   override var isFlipped: Bool { true }
 
@@ -232,8 +241,12 @@ final class ContentPreview: NSView {
       for body in bodies { body?.metrics = metrics }
       header.side = metrics.side
     }
-    let top = header.isHidden ? 0 : header.height
+    var top = header.isHidden ? 0 : header.height
     header.frame = NSRect(x: 0, y: 0, width: bounds.width, height: top)
+    if let accessory, !header.isHidden {
+      accessory.frame = NSRect(x: 0, y: top, width: bounds.width, height: accessory.frame.height)
+      top += accessory.frame.height
+    }
     host.frame = NSRect(x: 0, y: top, width: bounds.width, height: max(0, bounds.height - top))
     if let current, current !== note { current.frame = host.bounds }
     let noteHeight = ceil(note.sizeThatFits(NSSize(width: host.bounds.width - 48, height: 200)).height)

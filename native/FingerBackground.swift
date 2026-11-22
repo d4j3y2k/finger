@@ -216,6 +216,8 @@ final class FingerStatusMenu: NSObject, NSMenuDelegate {
   var loginItem: FingerLoginItem
   let awareness: AwarenessSettings
   var shortcuts: () -> PanelShortcuts? = { PanelShortcuts.shared }
+  /// Whether Jev is on, and Jev API Key….
+  private(set) var jev: FilingKeyMenu?
   /// Shown when Open at Login can't be changed.
   var report: (String) -> Void = { NSLog("Finger: %@", $0) }
   private var item: NSStatusItem?
@@ -261,6 +263,18 @@ final class FingerStatusMenu: NSObject, NSMenuDelegate {
     documents.state = awareness.useActivity && awareness.useDocuments ? .on : .off
     documents.isEnabled = awareness.useActivity
     if let shortcuts = shortcuts() { shortcuts.decorate(showPanel) }
+    jev?.refresh()
+  }
+
+  /// Adds Jev's status and Jev API Key… above Quit.
+  func addJev(_ jev: FilingKeyMenu) {
+    guard self.jev == nil else { return }
+    self.jev = jev
+    let at = menu.index(of: quit)
+    for (offset, entry) in [jev.status, jev.item!, NSMenuItem.separator()].enumerated() {
+      menu.insertItem(entry, at: at + offset)
+    }
+    jev.refresh()
   }
 
   @objc private func loginChosen() { toggleLogin() }
