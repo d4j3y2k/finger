@@ -17,8 +17,6 @@ open build/Finger.app
 
 Choose **Change project** to use your own folder. **Browse folders** (**⌘2**) opens the file browser, and **Worktable** (**⌘1**) brings you back.
 
-![Finger’s Worktable showing the Fold Studies project and its Overlap artwork](docs/Worktable.png)
-
 You can also drop a folder onto the app icon, or open a group of files with `open -a /path/to/Finger.app`. Files from one folder arrive selected together. Files from different folders open as a collection.
 
 ## Search panel and everyday install
