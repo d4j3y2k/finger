@@ -99,7 +99,7 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
     self.home = home
     self.search = search ?? SpotlightSearch(home: home)
     self.place = PanelPlace(home: home)
-    self.preview = preview ?? PanelInfoPreview(home: home)
+    self.preview = preview ?? ContentPreview()
     super.init()
     build()
   }
@@ -218,7 +218,7 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
     previewHost.frame = NSRect(
       x: listWidth, y: PanelRootView.footerHeight, width: b.width - listWidth, height: bodyHeight)
     preview.view.frame = previewHost.bounds
-    peek.frame = NSRect(x: 20, y: 20, width: previewHost.bounds.width - 40, height: bodyHeight - 38)
+    peek.frame = previewHost.bounds
     footer.frame = NSRect(x: 0, y: 0, width: b.width, height: PanelRootView.footerHeight)
     updateGhost()
   }
@@ -841,7 +841,8 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
       peek.isHidden = true
       peek.content = nil
       preview.view.isHidden = false
-      showPreview(item.file.url, item.match, force: force)
+      // The query is only a match to highlight when the file was found by its contents.
+      showPreview(item.file.url, item.origin == .inside ? item.match : nil, force: force)
     }
   }
 

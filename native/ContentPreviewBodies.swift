@@ -186,7 +186,8 @@ final class ContentTextBody: ContentFill, ContentBodyView {
 
   func show(_ text: ContentText) {
     content = text
-    color = text.style == .code ? ContentInk.editor : nil
+    // No box behind code: the panel's glass shows through, as it does for prose.
+    color = nil
     textView.lineStarts = text.lineStarts
     if text.style == .code {
       let digits = max(2, String(max(1, text.lines)).count)
@@ -299,7 +300,8 @@ final class ContentPDFBody: NSView, ContentBodyView {
     pdf.displaysPageBreaks = true
     pdf.autoScales = true
     pdf.pageShadowsEnabled = true
-    pdf.backgroundColor = ContentInk.desk
+    // Pages sit on the panel's glass, not on a desk-colored box.
+    pdf.backgroundColor = .clear
     pdf.setAccessibilityIdentifier("content-pdf")
     applyMargins()
     addSubview(pdf)
@@ -318,11 +320,6 @@ final class ContentPDFBody: NSView, ContentBodyView {
       pending = nil
       reveal(first)
     }
-  }
-
-  override func viewDidChangeEffectiveAppearance() {
-    super.viewDidChangeEffectiveAppearance()
-    pdf.backgroundColor = ContentInk.desk
   }
 
   func show(_ document: PDFDocument, matches: [PDFSelection]) {

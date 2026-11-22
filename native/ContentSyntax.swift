@@ -21,7 +21,6 @@ enum ContentInk {
   static let call = pair(0x326D74, 0x67B7A4)
   static let attribute = pair(0x643820, 0xFD8F3F)
   static let editor = pair(0xFFFFFF, 0x16161A, 0.72, 0.62)
-  static let desk = pair(0x000000, 0x000000, 0.05, 0.28)
   static let fill = pair(0x000000, 0xFFFFFF, 0.045, 0.06)
   static let fill2 = pair(0x000000, 0xFFFFFF, 0.08, 0.10)
   static let card = pair(0x000000, 0xFFFFFF, 0.14, 0.12)

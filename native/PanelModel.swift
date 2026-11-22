@@ -169,13 +169,6 @@ enum PanelText {
     f.setLocalizedDateFormatFromTemplate("MMM d, yyyy")
     return f
   }()
-  static let fullDate: DateFormatter = {
-    let f = DateFormatter()
-    f.dateStyle = .medium
-    f.timeStyle = .short
-    f.doesRelativeDateFormatting = true
-    return f
-  }()
 
   static func count(_ n: Int) -> String { n == 1 ? "1 item" : "\(n) items" }
 
@@ -184,15 +177,9 @@ enum PanelText {
     return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
   }
 
+  /// The same kind names as the file preview's header, so a row and its preview agree.
   static func kind(_ file: PanelFile) -> String {
-    if file.isFolder { return "Folder" }
-    let ext = (file.name as NSString).pathExtension
-    guard !ext.isEmpty, let type = UTType(filenameExtension: ext) else { return "Document" }
-    if type.isDynamic { return ext.uppercased() + " File" }
-    guard let description = type.localizedDescription, let first = description.first else {
-      return "Document"
-    }
-    return first.uppercased() + description.dropFirst()
+    file.isFolder ? "Folder" : ContentPreviewReader.kind(of: URL(fileURLWithPath: file.path))
   }
 
   /// "Kind · Size" for a file row inside a folder.

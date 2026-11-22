@@ -125,13 +125,12 @@ private final class FixtureSearch: PanelSearching {
 
 /// Records what the panel asks its preview to show, and shows the stand-in.
 private final class SpyPreview: PanelPreview {
-  let inner: PanelInfoPreview
-  init(home: String) { inner = PanelInfoPreview(home: home) }
+  let content = ContentPreview()
   var calls: [(URL?, String?)] = []
-  var view: NSView { inner.view }
+  var view: NSView { content }
   func show(_ url: URL?, match: String?) {
     calls.append((url, match))
-    inner.show(url, match: match)
+    content.show(url, match: match)
   }
 }
 
@@ -161,26 +160,104 @@ private let arrows: [UInt16: Int] = [
   126: NSUpArrowFunctionKey,
 ]
 
+/// A one-page PDF with a line of text.
+private func pdf(_ text: String) -> Data {
+  let data = NSMutableData()
+  var box = CGRect(x: 0, y: 0, width: 612, height: 792)
+  let context = CGContext(consumer: CGDataConsumer(data: data as CFMutableData)!, mediaBox: &box, nil)!
+  context.beginPDFPage(nil)
+  NSGraphicsContext.saveGraphicsState()
+  NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+  (text as NSString).draw(at: NSPoint(x: 72, y: 700), withAttributes: [.font: NSFont.systemFont(ofSize: 24)])
+  NSGraphicsContext.restoreGraphicsState()
+  context.endPDFPage()
+  context.closePDF()
+  return data as Data
+}
+
 private func makeFixture() -> String {
   let files = FileManager.default
   let base = URL(fileURLWithPath: NSTemporaryDirectory()).resolvingSymlinksInPath()
     .appendingPathComponent("Finger Panel " + UUID().uuidString, isDirectory: true)
   let root = base.path
+  // The mockup's own example files, so the previews have something to show.
   let launcher = """
     use std::sync::{Mutex, MutexGuard};
 
+    static NAV: Mutex<Navigation> = Mutex::new(Navigation::new());
+    static SEARCH: Mutex<Search> = Mutex::new(Search::new());
+
     /// A handler panic poisons the lock it held.
-    /// Start that state fresh instead of failing every later request.
+    /// Start that state fresh instead of failing
+    /// every later request for the session.
     fn lock<T: Default>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-        mutex.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+        mutex.lock().unwrap_or_else(|poisoned| {
+            let mut guard = poisoned.into_inner();
+            *guard = T::default();
+            mutex.clear_poison();
+            guard
+        })
     }
+
+    extern "C" fn request(service: i32, input: *const c_char) -> *mut c_char {
+        let p = parse(input);
+        let reply = catch_unwind(|| match service {
+            1 => lock(&NAV).handle(&p),
+            2 => lock(&SEARCH).install(&p["names"]),
+            _ => error("unknown service"),
+        });
+        // A panic becomes an error reply, never a crash.
+        into_c_string(reply.unwrap_or_else(|_| error("handler panicked")))
+    }
+
+    """
+  let pane = """
+    import AppKit
+    import QuickLookThumbnailing
+
+    // The preview and the main browser have
+    // independent scroll positions.
+    final class PreviewPane: NSView {
+      weak var browser: Browser?
+      private var generation = 0
+
+      func show(_ entry: Entry) {
+        generation += 1
+        let ticket = generation
+        PreviewReader.read(entry) { [weak self] model in
+          guard let self, ticket == self.generation else { return }
+          self.apply(model)
+        }
+      }
+    }
+
+    """
+  let readme = """
+    # Finger
+
+    Finger opens to a native Mac worktable with visual previews of files from your current project.
+
+    ## Build
+
+    From the project folder, run `scripts/build.sh`. Each build configures Codex and Claude Code for this checkout.
+
+    ```
+    scripts/build.sh
+    scripts/check.sh   # full suite, including a 10,000-entry GUI bench
+    ```
+
+    ## Keys
+
+    - **⌥ Space** shows or hides Finger
+    - **↩** opens, **⌫** goes up a folder
+
     """
   let tree: [String: String] = [
     "Developer/dotfiles/zshrc": "export EDITOR=vim\n",
     "Developer/finger/bridge/FingerMCP.swift": "// The MCP bridge speaks JSON-RPC over stdio.\n",
     "Developer/finger/docs/AGENTS-CONNECTION.md": "# Agent connection\n",
     "Developer/finger/docs/archive/2025/notes.md": "Old notes.\n",
-    "Developer/finger/native/PreviewPane.swift": "final class PreviewPane: NSView {}\n",
+    "Developer/finger/native/PreviewPane.swift": pane,
     "Developer/finger/native/Browser.swift": "final class Browser: NSObject {}\n",
     "Developer/finger/native/DestinationRanker.swift": "enum DestinationRanker {}\n",
     "Developer/finger/rust/launcher.rs": launcher,
@@ -188,7 +265,7 @@ private func makeFixture() -> String {
     "Developer/finger/scripts/build.sh": "#!/bin/sh\n",
     "Developer/finger/scripts/check.sh": "#!/bin/sh\n",
     "Developer/finger/Cargo.toml": "[package]\nname = \"finger-core\"\n",
-    "Developer/finger/README.md": "# Finger\n\nOpens to a native Mac worktable.\n",
+    "Developer/finger/README.md": readme,
     "Developer/keypad/README.md": "# keypad\n",
     "Developer/orphne/README.md": "# orphne\n",
     "Developer/orphne/sketch.js": "export function pattern() {}\n",
@@ -199,16 +276,16 @@ private func makeFixture() -> String {
     "Developer/spleen/Package.swift": "// swift-tools-version: 6.0\n",
     "Developer/spleen/Sources/Panel.swift": "final class Panel: NSPanel {}\n",
     "Developer/spleen/docs/DECISIONS_TRIAL.md": "# Decisions trial\n",
-    "Documents/Finances/2026/Tax estimate.pdf": "%PDF-1.4\n",
+    "Documents/Finances/2026/Tax estimate.pdf": "Tax estimate 2026",
     "Documents/Finances/2026/Q4 budget.csv": "month,cost\nOct,800\n",
-    "Downloads/Invoice 1121.pdf": "%PDF-1.4\n",
+    "Downloads/Invoice 1121.pdf": "Invoice 1121",
     "Desktop/Screenshot 2026-11-21 at 11.02.png": "",
-    "Studio/Posters/Spring poster.pdf": "%PDF-1.4\n",
+    "Studio/Posters/Spring poster.pdf": "Open Studio",
   ]
   for (relative, text) in tree {
     let url = base.appendingPathComponent(relative)
     try! files.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-    try! Data(text.utf8).write(to: url)
+    try! (url.pathExtension == "pdf" ? pdf(text) : Data(text.utf8)).write(to: url)
   }
   // The practice project from the app bundle, as in the mockup's Studio.
   let demo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -260,7 +337,7 @@ private func run(shots: String?) {
     dev + "/spleen/docs/DECISIONS_TRIAL.md": now.addingTimeInterval(-2 * 86_400),
     dev + "/rex/README.md": now.addingTimeInterval(-2 * 86_400 - 600),
   ]
-  let spy = SpyPreview(home: root)
+  let spy = SpyPreview()
   let engine = Engine(send, { free($0) })
   let c = PanelController(engine: engine, search: search, home: root, preview: spy)
   c.hidesOnResignKey = false
@@ -302,9 +379,21 @@ private func run(shots: String?) {
     c.root.layoutSubtreeIfNeeded()
   }
 
+  // The file preview loads off the main thread; wait for it and for any
+  // match to be scrolled into view.
+  func waitPreview() {
+    guard let file = c.selectedItem?.file, !file.isFolder else { return }
+    wait("preview of \(file.name)") {
+      spy.content.report.url?.path == file.path && spy.content.report.kind != .loading
+        && !spy.content.revealing
+    }
+  }
+
   func snapshot(_ title: String) {
     guard let shots else { return }
     settle()
+    waitPreview()
+    wait("searches settle") { !c.footer.status.contains("Searching") }
     for (suffix, look) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
       panel.appearance = NSAppearance(named: look)
       pump(0.08)
@@ -367,6 +456,11 @@ private func run(shots: String?) {
   check(
     c.items(in: "Recents").map(\.file.name).prefix(3) == ["launcher.rs", "Print notes.txt", "README.md"],
     "Recents are newest first", c.items(in: "Recents").map(\.file.name))
+  // A Rust file from Recents shows its code, with no box behind it.
+  key(down, "")
+  check(name(c.selectedPath) == "launcher.rs", "↓ moves to Recents")
+  waitPreview()
+  check(spy.content.report.kind == .code && spy.calls.last?.1 == nil, "a code file previews as code, with no match")
   snapshot("home")
 
   // Global search ranks the folder named by the prefix first and completes it.
@@ -480,6 +574,10 @@ private func run(shots: String?) {
     c.items(in: "Deeper in Developer").first?.file.path == finger + "/README.md",
     "deeper matches rank by recency", c.items(in: "Deeper in Developer").map(\.file.path))
   check(c.completion == ".md", "completion keeps the name's own case", c.completion)
+  waitPreview()
+  check(
+    spy.content.report.kind == .markdown && spy.calls.last?.1 == nil,
+    "a name match previews Markdown without highlighting", spy.content.report.kind)
   snapshot("deeper-readme")
 
   // And inside its files; the preview hears what matched.
@@ -487,6 +585,9 @@ private func run(shots: String?) {
   type("poison")
   wait("inside files") { c.items(in: "Inside Files").map(\.file.name) == ["launcher.rs"] }
   check(spy.calls.last?.1 == "poison", "a content match passes the query to the preview", spy.calls.last?.1 ?? "nil")
+  waitPreview()
+  check(spy.content.report.matches == 4, "the preview highlights every match", spy.content.report.matches)
+  snapshot("inside-files")
   key(esc, "\u{1b}")
 
   // The folder peek: clicking an item goes in with it selected.
@@ -499,6 +600,19 @@ private func run(shots: String?) {
       windowNumber: panel.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!)
   wait("peek click") { c.folder == finger && name(c.selectedPath) == "native" }
   check(true, "clicking a peek item goes in with that item selected")
+  check(
+    c.peek.header.frame.height == 58 && c.peek.header.name.font == NSFont.systemFont(ofSize: 14, weight: .semibold),
+    "the folder peek uses the file preview's header")
+
+  // A Swift file.
+  key(ret, "\r")
+  wait("inside native") { c.folder == finger + "/native" && !c.rows.isEmpty }
+  type("prev")
+  wait("PreviewPane") { name(c.selectedPath) == "PreviewPane.swift" }
+  waitPreview()
+  check(spy.content.report.kind == .code && spy.content.headerTitle == "PreviewPane.swift", "a Swift file previews as code")
+  snapshot("code-swift")
+  key(esc, "\u{1b}")
 
   // Motion: a keystroke during an animation finishes it at once.
   c.allowsMotion = true

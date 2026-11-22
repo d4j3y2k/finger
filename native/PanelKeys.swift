@@ -14,6 +14,14 @@ extension PanelController {
       return true
     }
     let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+    // After a click into the preview to select text, typing goes back to the
+    // search field. Arrows, ↩, esc and ⇥ work from anywhere; ⌘C still copies.
+    let editing = field.currentEditor() != nil && panel.firstResponder === field.currentEditor()
+    if !editing, !flags.contains(.command), !flags.contains(.control),
+      ![123, 124, 125, 126, 36, 76, 53, 48].contains(event.keyCode)
+    {
+      focusField(selectAll: false)
+    }
     let command = flags.contains(.command)
     let option = flags.contains(.option)
     let shift = flags.contains(.shift)
