@@ -14,6 +14,24 @@ open build/Finger.app
 
 You can also drop a folder onto the app icon, or open a group of files with `open -a /path/to/Finger.app`. Files from one folder arrive selected together. Files from different folders open as a collection.
 
+## Search panel and everyday install
+
+Press **⌃Space** from any app for Finger's search panel: type to find a file or folder, **↩** to open it or step in, **⌫** to go back up, and **esc** to close. **Finger → Panel Shortcut…** (also in the menu bar item) changes the shortcut.
+
+To keep Finger running in the background with Open at Login, install it from the project folder:
+
+```sh
+./scripts/install.sh
+```
+
+It builds the app, quits the running copy, replaces **/Applications/Finger.app**, adds a LaunchAgent at **~/Library/LaunchAgents/com.d4j3y2k.Finger.plist** that starts Finger with `--background` at login, and starts it now. Run it again after any change. Finger then has a menu bar item and shows a Dock icon only while its window is open; closing the window leaves ⌃Space working. Use **Quit Finger** in the menu bar item to stop it.
+
+Turn Open at Login off with the menu bar item's **Open at Login**, or from Terminal:
+
+```sh
+/Applications/Finger.app/Contents/MacOS/Finger --login-item off
+```
+
 ## A one-minute practice run
 
 **File → Open Practice Project** opens a fresh, writable copy of **Fold Studies** on the Worktable.

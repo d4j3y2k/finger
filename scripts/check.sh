@@ -24,6 +24,10 @@ swift=(xcrun swiftc -swift-version 5 -module-cache-path "$PWD/build/ModuleCache"
 "$stage/opens"
 "${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/FindPanelChecks.swift -o "$stage/find"
 "$stage/find" "${CARGO_TARGET_DIR:-target}/release/finger-core"
+# Finger as a background utility: Open at Login, the Dock icon only while the
+# window is open, the menu bar menu, and scripts/install.sh into a temp folder.
+"${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/BackgroundChecks.swift -o "$stage/background"
+"$stage/background" "$PWD"
 # The panel's shortcut: parsing, saving, live re-registration and its recorder window.
 "${swift[@]}" native/PanelShortcut.swift native/PanelHotKey.swift tests/PanelShortcutChecks.swift -o "$stage/shortcut"
 "$stage/shortcut"
