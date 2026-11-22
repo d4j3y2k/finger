@@ -24,6 +24,9 @@ swift=(xcrun swiftc -swift-version 5 -module-cache-path "$PWD/build/ModuleCache"
 "$stage/opens"
 "${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/FindPanelChecks.swift -o "$stage/find"
 "$stage/find" "${CARGO_TARGET_DIR:-target}/release/finger-core"
+# Renders ContentPreview offscreen and leaves PNGs in build/content-preview to review.
+"${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/ContentPreviewChecks.swift -o "$stage/content-preview"
+"$stage/content-preview" "$PWD/build/content-preview"
 
 python3 -B bridge/tests/wire_check.py
 python3 -B tests/gui-bench/run.py --entries 10000 --samples 3
