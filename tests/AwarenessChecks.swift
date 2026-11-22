@@ -403,7 +403,7 @@ private func center() {
   write(finger + "/rust/launcher.rs")
   write(finger + "/rust/listing.rs")
   let clock = FakeClock(Date())
-  let defaults = UserDefaults(suiteName: "finger.awareness.checks." + UUID().uuidString)!
+  let defaults = FingerMemoryPreferences()
   let settings = AwarenessSettings(defaults: defaults)
   var asked = 0
   var trusted = false
@@ -508,7 +508,7 @@ private func center() {
 }
 
 private func menu() {
-  let defaults = UserDefaults(suiteName: "finger.awareness.menu." + UUID().uuidString)!
+  let defaults = FingerMemoryPreferences()
   let settings = AwarenessSettings(defaults: defaults)
   var asked = 0
   settings.requestAccess = { asked += 1 }
@@ -671,7 +671,7 @@ private func panel(shots: String?) {
     finger + "/README.md": ago(120),
     root + "/Documents/Finances/2026/Q4 budget.csv": ago(26 * 60),
   ]
-  let defaults = UserDefaults(suiteName: "finger.awareness.panel." + UUID().uuidString)!
+  let defaults = FingerMemoryPreferences()
   let settings = AwarenessSettings(defaults: defaults)
   settings.trusted = { true }
   defaults.set(true, forKey: AwarenessSettings.documentsKey)

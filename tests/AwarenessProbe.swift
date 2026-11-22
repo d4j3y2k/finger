@@ -25,8 +25,8 @@ private enum AwarenessProbe {
   static func main() {
     let started = Date()
     let home = NSHomeDirectory()
-    // Read-only settings: nothing is written to defaults.
-    let settings = AwarenessSettings(defaults: UserDefaults(suiteName: "finger.awareness.probe.readonly")!)
+    // Settings in memory: nothing is read from or written to preferences.
+    let settings = AwarenessSettings(defaults: FingerMemoryPreferences())
     let spotlight = AwarenessSpotlightSource(search: SpotlightSearch(home: home))
     let saves = AwarenessSaveSource()
     let front = AwarenessFrontSource()

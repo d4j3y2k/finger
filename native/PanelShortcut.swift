@@ -165,7 +165,7 @@ final class PanelShortcuts {
     case failed(String)
   }
 
-  let defaults: UserDefaults
+  let defaults: FingerPreferences
   let standard: PanelShortcut
   let hotKey: PanelHotKey
   private(set) var current: PanelShortcut
@@ -174,7 +174,7 @@ final class PanelShortcuts {
   private var window: PanelShortcutWindow?
 
   init(
-    defaults: UserDefaults = .standard, standard: PanelShortcut = .standard,
+    defaults: FingerPreferences = UserDefaults.standard, standard: PanelShortcut = .standard,
     register: @escaping PanelHotKey.Register = PanelHotKey.carbon, action: @escaping () -> Void
   ) {
     self.defaults = defaults
@@ -184,7 +184,7 @@ final class PanelShortcuts {
   }
 
   /// The saved shortcut, if there is a usable one.
-  static func load(from defaults: UserDefaults) -> PanelShortcut? {
+  static func load(from defaults: FingerPreferences) -> PanelShortcut? {
     guard let text = defaults.string(forKey: defaultsKey), let shortcut = PanelShortcut(text),
       shortcut.problem == nil
     else { return nil }

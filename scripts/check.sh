@@ -18,7 +18,7 @@ trap 'rm -rf "$stage"' EXIT
 swift=(xcrun swiftc -swift-version 5 -module-cache-path "$PWD/build/ModuleCache")
 "${swift[@]}" native/FolderReferences.swift native/DestinationRanker.swift tests/DestinationRankerChecks.swift -o "$stage/ranking"
 "$stage/ranking"
-"${swift[@]}" native/FolderReferences.swift native/Engine.swift native/FileOrder.swift native/ResumeCatalog.swift tests/ResumeCatalogChecks.swift -o "$stage/worktable-ranking"
+"${swift[@]}" native/FingerPreferences.swift native/FolderReferences.swift native/Engine.swift native/FileOrder.swift native/ResumeCatalog.swift tests/ResumeCatalogChecks.swift -o "$stage/worktable-ranking"
 "$stage/worktable-ranking"
 "${swift[@]}" native/OpenItems.swift tests/OpenItemsChecks.swift -o "$stage/opens"
 "$stage/opens"
@@ -29,7 +29,7 @@ swift=(xcrun swiftc -swift-version 5 -module-cache-path "$PWD/build/ModuleCache"
 "${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/BackgroundChecks.swift -o "$stage/background"
 "$stage/background" "$PWD"
 # The panel's shortcut: parsing, saving, live re-registration and its recorder window.
-"${swift[@]}" native/PanelShortcut.swift native/PanelHotKey.swift tests/PanelShortcutChecks.swift -o "$stage/shortcut"
+"${swift[@]}" native/FingerPreferences.swift native/PanelShortcut.swift native/PanelHotKey.swift tests/PanelShortcutChecks.swift -o "$stage/shortcut"
 "$stage/shortcut"
 # The summonable panel, driven by keys over a fixture home. It writes light
 # and dark PNGs of the main states to build/panel-checks.

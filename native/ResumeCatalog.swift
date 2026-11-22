@@ -3,14 +3,14 @@ import Foundation
 /// Capture the previous visit before starting a scan. Refreshes of the same
 /// screen can reuse this snapshot while the next visit sees the new baseline.
 struct ResumeHistory {
-  private let defaults: UserDefaults
+  private let defaults: FingerPreferences
   fileprivate let visits: [String: Double]
   fileprivate let uses: [String: Double]
   private static let visitKey = "resumeProjectVisits"
   private static let useKey = "resumeFileUses"
   private static let lock = NSLock()
 
-  init(defaults: UserDefaults = .standard) {
+  init(defaults: FingerPreferences = UserDefaults.standard) {
     self.defaults = defaults
     visits = defaults.dictionary(forKey: Self.visitKey) as? [String: Double] ?? [:]
     uses = defaults.dictionary(forKey: Self.useKey) as? [String: Double] ?? [:]

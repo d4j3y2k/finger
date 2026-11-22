@@ -23,10 +23,9 @@ private func shortcut(_ text: String) -> PanelShortcut {
   return s
 }
 
-private func defaults() -> (UserDefaults, String) {
-  let name = "finger.panel-shortcut.checks." + UUID().uuidString
-  return (UserDefaults(suiteName: name)!, name)
-}
+/// Preferences that never reach ~/Library/Preferences. Pass the same store
+/// again for a "new launch".
+private func defaults() -> FingerMemoryPreferences { FingerMemoryPreferences() }
 
 /// Stands in for Carbon: records what is live and refuses what is "taken".
 private final class FakeCarbon {
@@ -111,8 +110,7 @@ private func events() {
 }
 
 private func persisting() {
-  let (store, name) = defaults()
-  defer { UserDefaults().removePersistentDomain(forName: name) }
+  let store = defaults()
   let fake = FakeCarbon()
   var announced = 0
   let observer = NotificationCenter.default.addObserver(forName: PanelShortcuts.changed, object: nil, queue: nil) { _ in
@@ -160,12 +158,8 @@ private func persisting() {
 private func carbon() {
   let hyper: NSEvent.ModifierFlags = [.control, .option, .shift, .command]
   func f(_ code: Int) -> PanelShortcut { PanelShortcut(keyCode: UInt32(code), modifiers: hyper) }
-  let (storeA, nameA) = defaults()
-  let (storeB, nameB) = defaults()
-  defer {
-    UserDefaults().removePersistentDomain(forName: nameA)
-    UserDefaults().removePersistentDomain(forName: nameB)
-  }
+  let storeA = defaults()
+  let storeB = defaults()
   let a = PanelShortcuts(defaults: storeA, standard: f(kVK_F19), action: {})
   check(a.start() == noErr && a.registered, "Carbon registers ⌃⌥⇧⌘F19")
   check(a.change(to: f(kVK_F18)) == .set(warning: nil) && a.hotKey.registered == f(kVK_F18), "re-registers live as ⌃⌥⇧⌘F18")
@@ -187,8 +181,7 @@ private func carbon() {
 }
 
 private func recorder() {
-  let (store, name) = defaults()
-  defer { UserDefaults().removePersistentDomain(forName: name) }
+  let store = defaults()
   let fake = FakeCarbon()
   let s = PanelShortcuts(defaults: store, register: fake.register, action: {})
   s.start()

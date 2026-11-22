@@ -124,7 +124,17 @@ def build(work, bulk_selection=False, delegate_driver=None):
                    cwd=source, check=True, env=env)
     binary = macos / "FingerGUIBench"
     shutil.copy2(work / "target" / "release" / "Finger", binary)
-    return binary, digest.hexdigest()
+    return binary, digest.hexdigest(), identifier
+
+
+def forget_preferences(identifier):
+    """The bench app is a real bundle, so AppKit and Finger save preferences
+    under its id, and CFFIXED_USER_HOME doesn't keep all of them out of
+    ~/Library/Preferences. Once the app has quit, delete that domain through
+    cfprefsd, which owns the file, so nothing is written back later. That
+    leaves an empty plist behind; once it is removed nothing recreates it."""
+    subprocess.run(["defaults", "delete", identifier], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    (Path.home() / "Library" / "Preferences" / (identifier + ".plist")).unlink(missing_ok=True)
 
 
 def main():
@@ -155,7 +165,8 @@ def main():
         parser.error("Run on macOS with Xcode command-line tools and cargo on PATH.")
     with tempfile.TemporaryDirectory(prefix="finger-gui-bench-") as directory, ExitStack() as extras:
         work = Path(directory)
-        binary, source_id = build(work, bulk_selection=args.bulk_selection or args.worktable)
+        binary, source_id, identifier = build(work, bulk_selection=args.bulk_selection or args.worktable)
+        extras.callback(forget_preferences, identifier)
         fixed_home = work / "preferences"
         if args.worktable:
             fixed_home.mkdir()

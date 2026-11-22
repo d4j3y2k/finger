@@ -10,7 +10,7 @@ final class AwarenessSettings {
   static let activityKey = "useActivity"
   static let documentsKey = "useAppDocuments"
 
-  let defaults: UserDefaults
+  let defaults: FingerPreferences
   /// Asks macOS for Accessibility; macOS shows its own dialog. Only turning
   /// App Documents on calls it.
   var requestAccess: () -> Void = {
@@ -19,7 +19,7 @@ final class AwarenessSettings {
   }
   var trusted: () -> Bool = { AXIsProcessTrusted() }
 
-  init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+  init(defaults: FingerPreferences = UserDefaults.standard) { self.defaults = defaults }
 
   var useActivity: Bool {
     get { defaults.object(forKey: AwarenessSettings.activityKey) as? Bool ?? true }

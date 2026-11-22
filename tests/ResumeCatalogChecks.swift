@@ -11,9 +11,8 @@ struct ResumeCatalogChecks {
     defer { try? manager.removeItem(at: temp) }
     let fixture = URL(fileURLWithPath: "assets/Demo/Fold Studies", isDirectory: true)
     try manager.copyItem(at: fixture, to: project)
-    let suite = "finger-resume-test-\(UUID())"
-    let defaults = UserDefaults(suiteName: suite)!
-    defer { defaults.removePersistentDomain(forName: suite) }
+    // In memory: the checks leave nothing in ~/Library/Preferences.
+    let defaults = FingerMemoryPreferences()
     let history = ResumeHistory(defaults: defaults)
     func scan(_ history: ResumeHistory) throws -> ResumeCatalog {
       try ResumeCatalog.scan(project: project.path, history: history)

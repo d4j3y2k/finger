@@ -163,11 +163,12 @@ private func statusMenu(_ root: URL) {
     launchctl: launchd.tool)
   var calls: [String] = []
   let shortcuts = PanelShortcuts(
-    defaults: UserDefaults(suiteName: "finger.background.checks." + UUID().uuidString)!,
+    defaults: FingerMemoryPreferences(),
     register: { _, _, _ in (noErr, PanelHotKey.Registration {}) }, action: {})
   let menu = FingerStatusMenu(
     loginItem: item, showPanel: { calls.append("panel") }, openWindow: { calls.append("window") },
-    editShortcut: { calls.append("shortcut") }, quit: { calls.append("quit") })
+    editShortcut: { calls.append("shortcut") }, quit: { calls.append("quit") },
+    awareness: AwarenessSettings(defaults: FingerMemoryPreferences()))
   menu.shortcuts = { shortcuts }
   menu.refresh()
   let titles = menu.menu.items.map { $0.isSeparatorItem ? "—" : $0.title }
