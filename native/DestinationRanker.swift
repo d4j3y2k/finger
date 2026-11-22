@@ -121,7 +121,12 @@ enum DestinationRanker {
 
   private static let jevCandidateLimit = 10
   static var jevConfigured: Bool { !credential.isEmpty }
+  /// The key filing reads from the Keychain, when it has one. Must not block.
+  static var keyProvider: (() -> String?)?
   private static var credential: String {
+    if let key = keyProvider?()?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty {
+      return key
+    }
     let environment = ProcessInfo.processInfo.environment
     for name in ["FINGER_JEV_API_KEY", "TYPESAFE_API_KEY"] {
       if let key = environment[name]?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty

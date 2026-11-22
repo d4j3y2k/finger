@@ -272,6 +272,8 @@ struct PanelItem {
   /// The text that found this file by its contents.
   var match: String?
   var highlight: NSRange?
+  /// Jev's probability for a folder in the move list.
+  var probability: Double? = nil
 }
 
 struct PanelSection {

@@ -37,6 +37,8 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
   var allowsMotion = true
   var opener: (URL) -> Void = { NSWorkspace.shared.open($0) }
   var revealer: (URL) -> Void = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
+  /// Jev filing for new downloads: chips, the bar, ⇥, the move list and undo (FilingPanel.swift).
+  var filing: FilingPanel?
 
   // MARK: Views
   let root = PanelRootView()
@@ -285,6 +287,7 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
 
   func hide() {
     finishMotion()
+    filing?.panelHidden()
     closeQuickLook()
     cancelSearches()
     releaseHeldKeys()
@@ -518,10 +521,17 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
   }
 
   func computeSections() -> [PanelSection] {
+    if let moving = filing?.moveSections(trimmedQuery) { return moving }
     let text = trimmedQuery
-    if let folder { return browseSections(folder, text) }
-    if text.isEmpty { return homeSections() }
-    return searchSections(text)
+    let sections: [PanelSection]
+    if let folder {
+      sections = browseSections(folder, text)
+    } else if text.isEmpty {
+      sections = homeSections()
+    } else {
+      sections = searchSections(text)
+    }
+    return filing?.adjust(sections) ?? sections
   }
 
   func homeSections() -> [PanelSection] {
@@ -544,7 +554,9 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
         PanelSection(
           title: "Just Arrived",
           items: fresh.map {
-            PanelItem(file: $0, origin: .home, subtitle: "Downloads", side: PanelText.ago($0.added))
+            PanelItem(
+              file: $0, origin: .home, subtitle: filing?.arrivalSubtitle($0.path) ?? "Downloads",
+              side: PanelText.ago($0.added))
           }))
     }
     shown.formUnion(fresh.map(\.path))
@@ -764,7 +776,9 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
     let text = trimmedQuery
     var title = ""
     var detail = ""
-    if rows.isEmpty {
+    if let moving = filing?.emptyText(rowsEmpty: rows.isEmpty) {
+      title = moving
+    } else if rows.isEmpty {
       if let folder {
         let name = place.name(folder)
         if let error = listingErrors[folder] {
@@ -794,6 +808,11 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
   }
 
   func updateFooter() {
+    if let moving = filing?.moveFooter {
+      footer.status = moving.status
+      footer.hints = moving.hints
+      return
+    }
     let text = trimmedQuery
     if let folder {
       let busy = !text.isEmpty && searching(folder, text)
@@ -821,6 +840,7 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
       }
       hints.append(PanelHint(keys: "⌘↩", label: "Show in Finder", action: .reveal))
     }
+    if let filing { hints = filing.decorate(hints, selectedItem) }
     if folder != nil && field.stringValue.isEmpty {
       hints.append(PanelHint(keys: "⌫", label: "Up", action: .up))
     }
@@ -832,6 +852,7 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
   var previewShown: (url: URL?, match: String?)?
 
   func updatePreview(force: Bool = false) {
+    defer { filing?.updateBar() }
     guard let item = selectedItem else {
       peek.isHidden = true
       peek.content = nil
@@ -938,6 +959,10 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
     finishMotion()
     let before = selectedItem?.file
     query = field.stringValue
+    if let filing, filing.isMoving {
+      filing.filterChanged()
+      return
+    }
     escapeHides = false
     userMoved = false
     pendingPick = nil
@@ -1043,6 +1068,8 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
   func navigate(
     to target: String?, focus: String?, direction: Direction, restoring text: String = ""
   ) {
+    // Choosing a folder to move to stays where it is.
+    guard filing?.isMoving != true else { return }
     finishMotion()
     let snapshot = motionOn ? captureMotion() : nil
     cancelSearches()

@@ -306,6 +306,7 @@ extension Browser {
               }
             }
             self.remap(changes)
+            FilingMemory.shared.remember(moves: changes)
           }
           if !done.isEmpty {
             let last = UserDefaults.standard.stringArray(forKey: "recentDestinations") ?? []

@@ -7,6 +7,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
   private var shortcuts: PanelShortcuts?
   private var presence: FingerPresence?
   private var statusMenu: FingerStatusMenu?
+  private var filing: FilingCoordinator?
+  private var jevMenu: FilingKeyMenu?
   private var browserStarted = false
   private let requests = OpenItemRequests()
 
@@ -47,6 +49,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         openWindow: { [weak self] in self?.showBrowser() },
         editShortcut: { PanelShortcuts.shared?.showWindow() },
         quit: { NSApp.terminate(nil) })
+      if let jevMenu { menu.addJev(jevMenu) }
       menu.install()
       statusMenu = menu
     }
@@ -128,7 +131,27 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         NSLog("Finger: couldn’t register %@ for the panel (status %d)", shortcuts.current.display, Int(status))
       }
     }
+    startFiling(controller)
     if show { DispatchQueue.main.async { controller.show() } }
+  }
+
+  /// Jev filing for new downloads. The key comes from the Keychain, else the
+  /// environment. A second running copy leaves Downloads to the first.
+  private func startFiling(_ controller: PanelController) {
+    let credentials = FilingCredentials(store: FilingKeychain())
+    DestinationRanker.keyProvider = { [credentials] in
+      credentials.cachedSource == nil ? nil : credentials.key
+    }
+    let coordinator = FilingCoordinator(
+      credentials: credentials, transport: FilingURLTransport(), evidence: SpotlightFilingEvidence())
+    controller.attachFiling(coordinator)
+    filing = coordinator
+    jevMenu = FilingKeyMenu(credentials: credentials)
+    if FingerPresence.otherInstance() == nil {
+      coordinator.start()
+    } else {
+      credentials.load()
+    }
   }
 
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

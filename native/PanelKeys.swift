@@ -18,6 +18,7 @@ extension PanelController {
       heldKeys.append(event)
       return true
     }
+    if let handled = filing?.handleKey(event) { return handled }
     let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
     // After a click into the preview to select text, typing goes back to the
     // search field. Arrows, ↩, esc and ⇥ work from anywhere; ⌘C still copies.
@@ -134,6 +135,10 @@ extension PanelController {
 
   /// ↩: a folder goes in; a file opens in its app and the panel hides.
   func activate() {
+    if let filing, filing.isMoving {
+      filing.confirmMove()
+      return
+    }
     guard let file = selectedItem?.file else { return }
     if file.isFolder {
       enter(file.path)
@@ -158,6 +163,7 @@ extension PanelController {
     case .quickLook: toggleQuickLook()
     case .intoFolder: _ = goRight()
     case .up: goUp()
+    case .filing(let hint): filing?.perform(hint)
     }
   }
 
@@ -299,6 +305,7 @@ extension PanelController {
       cell.chosen = row == selectedRow
       cell.hovered = row == hoveredRow
       cell.concealed = item.file.path == concealedPath
+      filing?.decorate(cell, item)
       cell.setAccessibilityLabel(item.file.name)
       cell.needsDisplay = true
       return cell
