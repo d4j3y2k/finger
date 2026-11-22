@@ -1,8 +1,10 @@
 # Finger
 
-Finger opens to a native Mac worktable with visual previews of files from your current project. It uses recent activity, matching sources and exports, and changes since your previous visit to decide what to show. Select a file to preview it or bring it into Codex.
+Finger is a native Mac file finder that knows what you're working on. Press **⌃Space** from any app for its search panel. The panel lists the files and projects you're busy with and previews them. With a Jev key, it also suggests where new downloads belong.
 
-![Finger’s Worktable showing the Fold Studies project and its Overlap artwork](docs/Worktable.png)
+![Finger’s search panel listing what you're working on and recent files, with a preview of Overlap 01.svg](docs/Panel.png)
+
+Its window opens to a worktable with visual previews of files from your current project. It uses recent activity, matching sources and exports, and changes since your previous visit to decide what to show. Select a file to preview it or bring it into Codex.
 
 ## Launch
 
@@ -14,6 +16,8 @@ open build/Finger.app
 ```
 
 Choose **Change project** to use your own folder. **Browse folders** (**⌘2**) opens the file browser, and **Worktable** (**⌘1**) brings you back.
+
+![Finger’s Worktable showing the Fold Studies project and its Overlap artwork](docs/Worktable.png)
 
 You can also drop a folder onto the app icon, or open a group of files with `open -a /path/to/Finger.app`. Files from one folder arrive selected together. Files from different folders open as a collection.
 
@@ -81,11 +85,13 @@ Move and Copy suggest real folders in the current project first. **Keep Both** c
 
 Each build configures Codex and Claude Code for this checkout. Select files on the Worktable or in the file browser and ask the connected agent to make a named collection from the selection. Collections open in the same window. Each row shows its original folder so identically named files are distinguishable. Right-click a collection to rename or remove it.
 
-**Help → Agent Connection** gives registration commands for the running bundle. The connection guide includes exact project settings, setup from other directories, Claude Desktop instructions and verification results. [Agent connection guide](docs/AGENTS-CONNECTION.md)
+**Help → Agent Connection** gives registration commands for the running bundle. The connection guide includes exact project settings, setup from other directories, Claude Desktop instructions and how it was tested. [Agent connection guide](docs/AGENTS-CONNECTION.md)
 
 ## Optional Jev ranking and filing
 
 Finger can ask Jev, a model from TypeSafe, where files belong. It does so only when it has a TypeSafe key. Add one with **Jev API Key…** in the menu bar item, which stores it in your login Keychain, or set `FINGER_JEV_API_KEY` or `TYPESAFE_API_KEY` in the app's environment. Without a key, Finger sends nothing over the network.
+
+![Finger’s search panel suggesting a folder for a new download under Just Arrived](docs/Filing.png)
 
 With a key, Finger sends these to TypeSafe:
 
@@ -111,7 +117,7 @@ open build/Finger.app
 
 `Cargo.lock` pins the Rust dependencies. The Swift AppKit adapter uses system frameworks. The resulting bundle contains the Rust executable, native interface library, practice artwork, icon and MCP bridge. Running it requires no compiler, account or separately installed service.
 
-The release was built with Rust/Cargo 1.100.0 and Apple Swift 6.3.3 using the macOS 26.5 SDK. The deployment target is macOS 14.0.
+Finger is built and tested with Rust 1.100.0 and Apple Swift 6.3.3 on the macOS 26.5 SDK. The deployment target is macOS 14.0.
 
 ```sh
 ./scripts/package.sh
@@ -121,7 +127,7 @@ The packaging script verifies the ad-hoc signature, extracts the archive, and ve
 
 ## Reproduce the checks
 
-Run the checks from a logged-in macOS desktop. The script builds the app, exercises the Rust filesystem engine, checks the native Find sheet and destination ranker, tests the MCP bridge, and runs the native window against 10,000 real entries.
+Run the checks from a logged-in macOS desktop. The script builds the app and runs the Rust filesystem tests. It then checks the Find sheet, destination ranking, background mode, the panel shortcut, the search panel, Jev filing, Working On, file previews and the MCP bridge, and runs the native window against 10,000 real entries. The panel and preview checks leave light and dark PNGs in `build/` to look over.
 
 ```sh
 ./scripts/check.sh
@@ -146,8 +152,6 @@ python3 -B tests/termination/run.py
 The termination suite requests Quit while a real copy is in flight and verifies the published files after the app exits. It also exercises a collision that needs a decision before quitting.
 
 The performance report records the hardware, data, measurement boundary and before/after timings. [Performance measurements](docs/PERFORMANCE.md)
-
-The build report includes the delivery paths, one-minute practice run, verification results and remaining limits. [Build report](docs/BUILD-REPORT.md)
 
 ## License
 

@@ -1,6 +1,6 @@
-# Finger on this Mac
+# Performance
 
-Apple M4 Pro, 48 GiB RAM, macOS 26.5.2. The release-mode GUI benchmark uses Finger’s production Rust launcher, search index, AppKit window, table and text editor. Each run creates real folders and mixed PNG, SVG, text, JSON, CSV and Rust files. The window has isolated preferences and stays offscreen.
+These measurements cover the file browser window, taken on an Apple M4 Pro with 48 GiB RAM and macOS 26.5.2. The release-mode GUI benchmark uses Finger’s production Rust launcher, search index, AppKit window, table and text editor. Each run creates real folders and mixed PNG, SVG, text, JSON, CSV and Rust files. The window has isolated preferences and stays offscreen.
 
 ## Whole-window results
 
