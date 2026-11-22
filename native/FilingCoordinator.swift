@@ -272,7 +272,7 @@ final class FilingCoordinator {
       host.map { "\(name) arrived from \($0)" } ?? "\(name) arrived in Downloads",
       sent: host.map { "Its file name and \($0)" } ?? "Its file name")
     log.add(
-      "\(folders.count) folders it might belong in",
+      "\(folders.count) folders \(name) might belong in",
       sent: "Folder names: " + names.prefix(4).joined(separator: ", ") + (names.count > 4 ? ", …" : ""))
   }
 

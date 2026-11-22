@@ -600,13 +600,17 @@ private func keychain() {
   let jevMenu = FilingKeyMenu(credentials: menuCredentials)
   let menu = FingerStatusMenu(
     loginItem: FingerLoginItem(agents: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)),
-    showPanel: {}, openWindow: {}, editShortcut: {}, quit: {})
+    showPanel: {}, openWindow: {}, editShortcut: {}, quit: {},
+    awareness: AwarenessSettings(defaults: FingerMemoryPreferences()))
   menu.shortcuts = { nil }
   menu.addJev(jevMenu)
   let titles = menu.menu.items.map { $0.isSeparatorItem ? "—" : $0.title }
   check(
-    titles.suffix(4) == ["Jev is off · no TypeSafe key", "Jev API Key…", "—", "Quit Finger"],
-    "the menu says Jev is off and offers Jev API Key… above Quit", titles)
+    titles == [
+      "Show Finger Panel", "Open Finger Window", "—", "Use Activity", "Use App Documents…",
+      "Jev is off · no TypeSafe key", "Jev API Key…", "—", "Panel Shortcut…", "Open at Login", "—", "Quit Finger",
+    ],
+    "the menu says Jev is off and offers Jev API Key… with what Finger uses", titles)
   check(!jevMenu.status.isEnabled, "the status line is not a command")
   try! menuCredentials.save("sk-menu-0123456789")
   check(jevMenu.status.title == "Jev is on · key in Keychain", "saving a key turns it on in the menu", jevMenu.status.title)
@@ -667,7 +671,7 @@ private func arrivalsAndCoordinator(_ root: String) {
   check(destinations.first?["folder"] == "invoices", "local order leads", destinations.map { $0["folder"]! })
   check(log.pairs.contains { $0.signal == "Invoice 1121.pdf arrived from billing.harborprint.co" && $0.sent == "Its file name and billing.harborprint.co" }, "the log says what was sent", log.pairs)
   check(
-    log.pairs.contains { $0.signal.hasSuffix("folders it might belong in") && $0.sent.hasPrefix("Folder names: invoices") },
+    log.pairs.contains { $0.signal.hasSuffix("folders Invoice 1121.pdf might belong in") && $0.sent.hasPrefix("Folder names: invoices") },
     "including the folder names")
   check(
     log.pairs.contains { $0.signal.contains("are filed in invoices") && $0.sent == FilingLog.staysHere },
@@ -742,6 +746,19 @@ private func arrivalsAndCoordinator(_ root: String) {
   check(changes > 0, "changes were reported to the panel")
 }
 
+/// Awareness signals that are there from the start, for the merged panel.
+private final class FixedSignals: AwarenessSource {
+  let fill: (inout AwarenessSignals) -> Void
+  init(_ fill: @escaping (inout AwarenessSignals) -> Void) { self.fill = fill }
+  func start(_ sink: AwarenessSink) {
+    sink.record {
+      self.fill(&$0)
+      return true
+    }
+  }
+  func stop() {}
+}
+
 private func panelChecks(_ root: String, shots: String?) {
   let downloads = root + "/Downloads"
   let studies = root + "/Studio/Fold Studies"
@@ -766,6 +783,34 @@ private func panelChecks(_ root: String, shots: String?) {
   var opened: [URL] = []
   c.opener = { opened.append($0) }
   c.attachFiling(coordinator)
+  // Working On beside filing, from fixed signals: Overlap 01 open in
+  // Illustrator and saved, and a Claude Code session editing finger's docs.
+  let exports = studies + "/exports"
+  func minutesAgo(_ m: Double) -> Date { now.addingTimeInterval(-m * 60) }
+  let awarenessSettings = AwarenessSettings(defaults: FingerMemoryPreferences([AwarenessSettings.documentsKey: true]))
+  awarenessSettings.trusted = { true }
+  let awareness = AwarenessCenter(
+    home: root, settings: awarenessSettings,
+    sources: [
+      FixedSignals { s in
+        s.front("Illustrator", bundle: "com.adobe.illustrator", at: minutesAgo(25))
+        for m in [18.0, 9, 6] { s.save(exports + "/Overlap 01.svg", at: minutesAgo(m)) }
+        s.save(exports + "/Overlap 01.png", at: minutesAgo(4))
+        s.save(root + "/Developer/finger/docs/AGENTS-CONNECTION.md", at: minutesAgo(12))
+        s.sessions = [
+          AwarenessSession(kind: .agent("Claude Code"), folder: root + "/Developer/finger", host: "Terminal", active: minutesAgo(11), pid: 1)
+        ]
+      }
+    ],
+    documents: FixedSignals { $0.document(exports + "/Overlap 01.svg", app: "Illustrator", bundle: "com.adobe.illustrator", at: minutesAgo(25)) },
+    clock: { now })
+  awareness.delay = 0.05
+  awareness.quietDelay = 0.05
+  awareness.start()
+  c.awareness = awareness
+  // Filing's log in "What Finger knows", as the app connects it.
+  let knowledge = log.registerKnowledge()
+  defer { PanelKnowledge.unregister(knowledge) }
   let filing = c.filing!
   filing.toast.lifetime = 60
   var settled = 0
@@ -858,6 +903,9 @@ private func panelChecks(_ root: String, shots: String?) {
 
   // Home: chips on the new downloads once Jev has answered, in the background.
   wait("Just Arrived") { c.items(in: "Just Arrived").count == 3 }
+  wait("Working On") { c.items(in: "Working On").count == 3 }
+  check(c.sectionTitles.prefix(2) == ["Working On", "Just Arrived"], "Working On leads Home, then the new downloads", c.sectionTitles)
+  check(c.footer.status == "Fold Studies in Illustrator · finger in Terminal" && c.footer.aware, "the footer says what you're working on", c.footer.status)
   wait("verdicts") { ["Invoice 1121.pdf", "IMG_4821.HEIC", "meeting-notes.txt"].allSatisfy { name in coordinator.verdict(for: downloads + "/" + name) != nil } }
   wait("subtitles name the sender") { c.items(in: "Just Arrived").first { $0.file.name == "Invoice 1121.pdf" }?.subtitle == "Downloads · harborprint.co" }
   check(true, "the invoice's row says where it came from")
@@ -878,7 +926,7 @@ private func panelChecks(_ root: String, shots: String?) {
   check(
     filing.bar.content?.why == "3 other HEIC files are here, and Fold Studies is what you’re working on.",
     "its why comes from what Finger saw", filing.bar.content?.why ?? "nil")
-  check(c.footer.hints.map(\.keys) == ["↩", "Space", "→", "⌥M"], "Likely files hint ⌥M Move but not ⇥ File", c.footer.hints.map(\.keys))
+  check(c.footer.hints.map(\.keys) == ["↩", "Space", "⌥M"], "Likely files hint ⌥M Move but not ⇥ File", c.footer.hints.map(\.keys))
   snapshot("filing-home")
 
   // The Confident bar, above the invoice.
@@ -888,7 +936,10 @@ private func panelChecks(_ root: String, shots: String?) {
   check(filing.bar.buttons.map(\.1) == ["Other…", "File to invoices"], "with Other… and File to invoices")
   check(filing.bar.content?.why == "Invoices 1119 and 1120 from billing.harborprint.co are filed here.", "and why", filing.bar.content?.why ?? "nil")
   check(abs((filing.bar.content?.probability ?? 0) - 0.91) < 0.001 && filing.bar.label == "Suggested by Jev · Confident", "91%, Confident")
-  check(c.footer.hints.map(\.keys) == ["↩", "⇥", "Space", "→", "⌥M"], "the footer offers ⇥ File", c.footer.hints.map(\.keys))
+  check(
+    c.footer.hints.map { $0.keys + " " + $0.label } == ["↩ Open", "⇥ File", "Space Quick Look", "⌥M Move"],
+    "the footer offers ↩ Open, ⇥ File, Space Quick Look and ⌥M Move", c.footer.hints.map(\.keys))
+  check(cell("Overlap 01.svg")?.dot == false && cell("Invoice 1121.pdf")?.filingChip != nil, "Home's rows: chips on downloads, no dots")
   snapshot("filing-invoice")
   select("meeting-notes.txt")
   waitPreview()
@@ -919,6 +970,8 @@ private func panelChecks(_ root: String, shots: String?) {
   check(!others.contains(downloads) && !others.contains(studies + "/refs"), "never where it is, or a folder twice")
   check(cell("refs")?.probability.map { Int($0 * 100 + 0.5) } == 58 && cell("refs")?.folder == false, "rows draw Jev's percentage, without a chevron")
   check(c.footer.hints.map(\.label) == ["Move", "Cancel"], "↩ Move, esc Cancel", c.footer.hints.map(\.label))
+  check(c.footer.status == "Choose a folder for IMG_4821.HEIC" && !c.footer.aware, "the footer asks for a folder, not what you're working on", c.footer.status)
+  check(!c.rows.contains { $0.item.map(c.awarenessDot) == true }, "and the move list's folders have no dots")
   snapshot("filing-move")
   // Typing filters; Esc goes back.
   type("doc")
@@ -1000,6 +1053,31 @@ private func panelChecks(_ root: String, shots: String?) {
   key(6, "z", .command)
   wait("undo delivery") { settled > mark }
   check(FileManager.default.fileExists(atPath: notes), "⌘Z put it back in exports")
+  // What Finger knows: Working On's signals, then filing's real rows, kept current.
+  check(c.field.placeholder == "Search", "the field asks for a search again, not a folder", c.field.placeholder)
+  check(c.footer.aware, "the footer still opens What Finger knows", c.footer.status)
+  c.showKnowledge()
+  let known = c.knowledgeView.rows
+  let mine = Set(awareness.snapshot.knowledge.map { $0.signal + $0.sent })
+  let filingShown = known.filter { !mine.contains($0.signal + $0.sent) }
+  check(known.first == PanelKnowledgeRow(signal: "Illustrator in front with Overlap 01.svg, 25 min", sent: PanelKnowledge.staysHere), "awareness rows come first", known.map(\.signal))
+  check(known.count - filingShown.count >= 3 && filingShown.count >= 3, "each source keeps a fair share of the room", known.map(\.signal))
+  check(
+    filingShown.count >= 2 && filingShown[0].signal == "10 folders meeting-notes.txt might belong in"
+      && filingShown[0].sent.hasPrefix("Folder names: ")
+      && filingShown[1] == PanelKnowledgeRow(signal: "meeting-notes.txt arrived from docs.example.org", sent: "Its file name and docs.example.org"),
+    "then what filing sent to Jev, newest first", filingShown.map { "\($0.signal) | \($0.sent)" })
+  check(filingShown.allSatisfy { $0.sent != FilingLog.staysHere }, "filing's rows that stayed here give way to what was sent", filingShown.map(\.sent))
+  check(!known.contains { $0.signal.contains("harborprint.co, file name") || $0.sent == "harborprint.co, file name" }, "no made-up Jev rows")
+  snapshot("merged-knowledge")
+  check(c.knowledgeView.more > 0 && c.knowledgeView.frame.maxY <= c.root.bounds.height - PanelRootView.searchHeight, "a long log fits, with “and N more”", c.knowledgeView.more)
+  check(Set(known.map { $0.signal + $0.sent }).count == known.count, "a repeated row shows once")
+  let hiddenBefore = c.knowledgeView.more
+  log.add("Checking that the popover follows the log", sent: "A file name")
+  check(
+    c.knowledgeView.rows.contains { $0.signal == "Checking that the popover follows the log" } && c.knowledgeView.more == hiddenBefore + 1,
+    "a new filing row shows while it is open", c.knowledgeView.rows.map(\.signal))
+  c.hideKnowledge()
 
   // Never overwrite: a name already there is the core's collision, and Keep Both is a choice.
   let existing = root + "/Documents/meeting-notes.txt"

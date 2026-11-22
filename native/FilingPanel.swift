@@ -121,8 +121,9 @@ final class FilingPanel {
       let at = (out.firstIndex { $0.action == .activate }).map { $0 + 1 } ?? 0
       out.insert(PanelHint(keys: "⇥", label: "File", action: .filing(.file)), at: at)
     }
-    // ⌥M Move before Show in Finder, which files leave to the move list's room.
-    out.removeAll { $0.action == .reveal }
+    // ↩ Open, ⇥ File, Space Quick Look, ⌥M Move: Show in Finder and → Folder
+    // keep their keys but leave the footer to the awareness status.
+    out.removeAll { $0.action == .reveal || $0.action == .intoFolder }
     out.append(PanelHint(keys: "⌥M", label: "Move", action: .filing(.move)))
     return out
   }
@@ -405,8 +406,9 @@ final class FilingPanel {
     guard let c = controller, let move else { return }
     self.move = nil
     c.chips.pill = nil
-    c.field.placeholder = c.folder.map { "Search in " + c.place.name($0) } ?? "Search"
+    // Clear the filter first: the field editor keeps the placeholder it had while text was in it.
     c.setQuery(move.query)
+    c.field.placeholder = c.folder.map { "Search in " + c.place.name($0) } ?? "Search"
     c.layoutViews()
     c.rebuild(.path(move.selected))
     if !c.trimmedQuery.isEmpty { c.scheduleSearch(immediate: true) }

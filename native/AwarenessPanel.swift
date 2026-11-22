@@ -14,6 +14,9 @@ extension PanelController {
     }
     peek.marked = { [weak self] in self?.awarenessSnapshot.marked($0) ?? false }
     footer.onStatus = { [weak self] in self?.toggleKnowledge() }
+    NotificationCenter.default.removeObserver(self, name: PanelKnowledge.changed, object: nil)
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(knowledgeChanged), name: PanelKnowledge.changed, object: nil)
     awarenessChanged()
   }
 
@@ -45,7 +48,8 @@ extension PanelController {
   /// A blue dot: something you are working on, or a folder on the way there.
   /// Home's own lists don't need one.
   func awarenessDot(_ item: PanelItem) -> Bool {
-    item.origin != .home && awarenessSnapshot.marked(item.file.path)
+    // The move list's folders carry Jev's percentages instead.
+    item.origin != .home && filing?.isMoving != true && awarenessSnapshot.marked(item.file.path)
   }
 
   /// After where you left off, entering a folder lands on the trail.
@@ -63,6 +67,11 @@ extension PanelController {
 
   var knowledgeShown: Bool { knowledgeView.superview != nil && !knowledgeView.isHidden }
 
+  /// A source's rows changed, such as filing's log: an open popover follows.
+  @objc func knowledgeChanged() {
+    if knowledgeShown { refreshKnowledge() }
+  }
+
   func toggleKnowledge() {
     if knowledgeShown { hideKnowledge() } else { showKnowledge() }
   }
@@ -75,9 +84,9 @@ extension PanelController {
   }
 
   func refreshKnowledge() {
-    knowledgeView.rows = PanelKnowledge.rows
     let width = min(PanelKnowledgeView.width, root.bounds.width - 20)
     let room = root.bounds.height - PanelRootView.footerHeight - PanelRootView.searchHeight - 12
+    knowledgeView.fit(PanelKnowledge.groups, width: width, maxHeight: room)
     let height = min(knowledgeView.fittingHeight(width: width), room)
     knowledgeView.frame = NSRect(x: 10, y: PanelRootView.footerHeight + 6, width: width, height: height)
     knowledgeView.needsDisplay = true

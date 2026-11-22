@@ -243,9 +243,10 @@ final class FingerStatusMenu: NSObject, NSMenuDelegate {
     documents.target = self
     documents.action = #selector(documentsChosen)
     documents.toolTip = "Also read the front window’s document. macOS asks for Accessibility."
+    // Jev's status and Jev API Key… join the middle group (addJev).
     for entry in [
-      self.showPanel, self.openWindow, NSMenuItem.separator(), shortcut, login, NSMenuItem.separator(),
-      activity, documents, NSMenuItem.separator(), self.quit,
+      self.showPanel, self.openWindow, NSMenuItem.separator(), activity, documents, NSMenuItem.separator(),
+      shortcut, login, NSMenuItem.separator(), self.quit,
     ] {
       menu.addItem(entry)
     }
@@ -266,12 +267,13 @@ final class FingerStatusMenu: NSObject, NSMenuDelegate {
     jev?.refresh()
   }
 
-  /// Adds Jev's status and Jev API Key… above Quit.
+  /// Adds Jev's status and Jev API Key… after Use App Documents…, with the
+  /// other things Finger knows and sends.
   func addJev(_ jev: FilingKeyMenu) {
     guard self.jev == nil else { return }
     self.jev = jev
-    let at = menu.index(of: quit)
-    for (offset, entry) in [jev.status, jev.item!, NSMenuItem.separator()].enumerated() {
+    let at = menu.index(of: documents) + 1
+    for (offset, entry) in [jev.status, jev.item!].enumerated() {
       menu.insertItem(entry, at: at + offset)
     }
     jev.refresh()

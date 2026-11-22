@@ -174,8 +174,8 @@ private func statusMenu(_ root: URL) {
   let titles = menu.menu.items.map { $0.isSeparatorItem ? "—" : $0.title }
   check(
     titles == [
-      "Show Finger Panel", "Open Finger Window", "—", "Panel Shortcut…", "Open at Login", "—", "Use Activity",
-      "Use App Documents…", "—", "Quit Finger",
+      "Show Finger Panel", "Open Finger Window", "—", "Use Activity", "Use App Documents…", "—", "Panel Shortcut…",
+      "Open at Login", "—", "Quit Finger",
     ],
     "the menu bar item's menu", titles)
   check(menu.showPanel.keyEquivalent == " " && menu.showPanel.keyEquivalentModifierMask == [.control], "Show Finger Panel shows ⌃Space")

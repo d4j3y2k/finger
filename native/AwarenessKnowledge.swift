@@ -13,21 +13,57 @@ enum PanelKnowledge {
   /// The second column for anything that is never sent.
   static let staysHere = "Stays on this Mac"
 
-  private static var sources: [(id: Int, source: () -> [PanelKnowledgeRow])] = []
+  /// Posted on the main thread when a source says its rows changed.
+  static let changed = Notification.Name("PanelKnowledge.changed")
+
+  private static var sources: [(id: Int, source: () -> [PanelKnowledgeRow], observer: NSObjectProtocol?)] = []
   private static var next = 0
 
-  /// Adds a source of rows. Keep the id to remove it later.
+  /// Adds a source of rows. Keep the id to remove it later. With `changes`,
+  /// that notification (from `object`) refreshes an open popover.
   @discardableResult
-  static func register(source: @escaping () -> [PanelKnowledgeRow]) -> Int {
+  static func register(
+    source: @escaping () -> [PanelKnowledgeRow], changes: Notification.Name? = nil, object: AnyObject? = nil
+  ) -> Int {
     next += 1
-    sources.append((next, source))
+    let observer = changes.map {
+      NotificationCenter.default.addObserver(forName: $0, object: object, queue: .main) { _ in
+        NotificationCenter.default.post(name: PanelKnowledge.changed, object: nil)
+      }
+    }
+    sources.append((next, source, observer))
     return next
   }
 
-  static func unregister(_ id: Int) { sources.removeAll { $0.id == id } }
+  static func unregister(_ id: Int) {
+    for entry in sources where entry.id == id {
+      if let observer = entry.observer { NotificationCenter.default.removeObserver(observer) }
+    }
+    sources.removeAll { $0.id == id }
+  }
+
+  /// Each source's rows, in the order the sources were registered.
+  static var groups: [[PanelKnowledgeRow]] { sources.map { $0.source() } }
 
   /// Every source's rows, in the order the sources were registered.
-  static var rows: [PanelKnowledgeRow] { sources.flatMap { $0.source() } }
+  static var rows: [PanelKnowledgeRow] { groups.flatMap { $0 } }
+}
+
+extension FilingLog {
+  /// Lists what filing noticed and what it sent to Jev in "What Finger knows",
+  /// newest first, refreshed as rows arrive.
+  @discardableResult
+  func registerKnowledge() -> Int {
+    PanelKnowledge.register(
+      source: { [weak self] in
+        // What was sent to Jev first, then what stayed here, each newest first.
+        // A row that repeats (moved, put back, moved again) shows once.
+        var seen = Set<String>()
+        let rows = (self?.pairs ?? []).filter { seen.insert($0.signal + "\u{0}" + $0.sent).inserted }
+          .map { PanelKnowledgeRow(signal: $0.signal, sent: $0.sent) }
+        return rows.filter { $0.sent != FilingLog.staysHere } + rows.filter { $0.sent == FilingLog.staysHere }
+      }, changes: FilingLog.changed, object: self)
+  }
 }
 
 /// The popover the footer's status opens: what Finger knows right now, in two
@@ -36,6 +72,8 @@ enum PanelKnowledge {
 final class PanelKnowledgeView: NSView {
   override var isFlipped: Bool { true }
   var rows: [PanelKnowledgeRow] = [] { didSet { needsLayout = true; needsDisplay = true } }
+  /// Rows left out because they don't fit: "and 6 more".
+  private(set) var more = 0
   var note = "File contents and full paths stay on this Mac. Turn this off with Use Activity in Finger’s menu bar menu."
   static let title = "What Finger knows right now"
   static let width: CGFloat = 460
@@ -79,6 +117,33 @@ final class PanelKnowledgeView: NSView {
     return ceil(rect.height) + 1
   }
 
+  /// Shows as much of each source's rows as fits in `maxHeight`. The source
+  /// with the most rows gives way first, and within it a row that stayed on
+  /// this Mac before one that was sent to Jev, from the end.
+  func fit(_ groups: [[PanelKnowledgeRow]], width: CGFloat, maxHeight: CGFloat) {
+    var kept = groups.filter { !$0.isEmpty }
+    let total = kept.reduce(0) { $0 + $1.count }
+    rows = kept.flatMap { $0 }
+    more = 0
+    while rows.count > 1, fittingHeight(width: width) > maxHeight {
+      let largest = kept.map(\.count).max() ?? 0
+      let candidates = kept.indices.filter { kept[$0].count == largest && largest > 1 }
+      guard
+        let g = candidates.last(where: { i in kept[i].contains { $0.sent == PanelKnowledge.staysHere } })
+          ?? candidates.last
+      else { break }
+      if let i = kept[g].lastIndex(where: { $0.sent == PanelKnowledge.staysHere }) {
+        kept[g].remove(at: i)
+      } else {
+        kept[g].removeLast()
+      }
+      rows = kept.flatMap { $0 }
+      more = total - rows.count
+    }
+  }
+
+  private var moreText: String { "and \(more) more" }
+
   /// The height that fits `rows` at `width`.
   func fittingHeight(width: CGFloat) -> CGFloat {
     let (left, right) = columns(width)
@@ -87,6 +152,7 @@ final class PanelKnowledgeView: NSView {
       h += 12 + max(textHeight(row.signal, PanelKnowledgeView.rowFont, left), textHeight(row.sent, PanelKnowledgeView.rowFont, right))
     }
     if rows.isEmpty { h += 12 + 16 }
+    if more > 0 { h += 6 + 16 }
     h += 10 + textHeight(note, PanelKnowledgeView.noteFont, width - PanelKnowledgeView.pad * 2) + PanelKnowledgeView.pad
     return ceil(h)
   }
@@ -128,6 +194,15 @@ final class PanelKnowledgeView: NSView {
       wrapped(row.sent, .secondaryLabelColor).draw(
         with: NSRect(x: pad + left + 12, y: y, width: right, height: h), options: [.usesLineFragmentOrigin])
       y += h + 6
+    }
+    if more > 0 {
+      NSColor.separatorColor.setFill()
+      NSRect(x: pad, y: y, width: b.width - pad * 2, height: hairline).fill()
+      y += 6
+      PanelDraw.line(
+        PanelDraw.text(moreText, PanelKnowledgeView.rowFont, .tertiaryLabelColor),
+        in: NSRect(x: pad, y: y, width: b.width - pad * 2, height: 16))
+      y += 16
     }
     y += 10
     let note = PanelKnowledgeView.wrapped(self.note, PanelKnowledgeView.noteFont, .secondaryLabelColor)

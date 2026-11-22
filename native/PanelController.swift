@@ -819,6 +819,7 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
   func updateFooter() {
     if let moving = filing?.moveFooter {
       footer.status = moving.status
+      footer.aware = false
       footer.hints = moving.hints
       return
     }

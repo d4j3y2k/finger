@@ -151,6 +151,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     let coordinator = FilingCoordinator(
       credentials: credentials, transport: FilingURLTransport(), evidence: SpotlightFilingEvidence())
     controller.attachFiling(coordinator)
+    // What filing noticed and sent to Jev, under Working On's rows in "What Finger knows".
+    coordinator.log.registerKnowledge()
     filing = coordinator
     jevMenu = FilingKeyMenu(credentials: credentials)
     if FingerPresence.otherInstance() == nil {
