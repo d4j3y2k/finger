@@ -24,6 +24,11 @@ swift=(xcrun swiftc -swift-version 5 -module-cache-path "$PWD/build/ModuleCache"
 "$stage/opens"
 "${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/FindPanelChecks.swift -o "$stage/find"
 "$stage/find" "${CARGO_TARGET_DIR:-target}/release/finger-core"
+# The summonable panel, driven by keys over a fixture home. It writes light
+# and dark PNGs of the main states to build/panel-checks.
+"${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/PanelChecks.swift -o "$stage/panel"
+mkdir -p build/panel-checks
+"$stage/panel" "${CARGO_TARGET_DIR:-target}/release/finger-core" "$PWD/build/panel-checks"
 
 python3 -B bridge/tests/wire_check.py
 python3 -B tests/gui-bench/run.py --entries 10000 --samples 3

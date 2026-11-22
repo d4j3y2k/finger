@@ -523,6 +523,8 @@ extension Browser {
     win.addItem(
       withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
     win.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+    win.addItem(.separator())
+    win.addItem(CommandItem("Show Finger Panel") { PanelController.shared?.show() })
     let help = section("Help")
     help.addItem(
       CommandItem("Keyboard Shortcuts…", key: "?", mask: [.command]) { [weak self] in

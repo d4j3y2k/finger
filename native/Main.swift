@@ -3,6 +3,8 @@ import AppKit
 private final class AppDelegate: NSObject, NSApplicationDelegate {
   let engine: Engine
   var browser: Browser?
+  private var panel: PanelController?
+  private var hotKey: PanelHotKey?
   private let requests = OpenItemRequests()
 
   init(engine: Engine) { self.engine = engine }
@@ -23,6 +25,19 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
       b.start(at: nil)
       resolve(explicit, in: b)
     }
+    startPanel(show: CommandLine.arguments.contains("--panel"))
+  }
+
+  /// The summonable search panel. ⌥Space toggles it from any app.
+  private func startPanel(show: Bool) {
+    let controller = PanelController(engine: engine)
+    panel = controller
+    PanelController.shared = controller
+    hotKey = PanelHotKey { [weak controller] in controller?.toggle() }
+    if hotKey?.registered != true {
+      NSLog("Finger: ⌥Space is taken by another app (status %d)", Int(hotKey?.status ?? 0))
+    }
+    if show { DispatchQueue.main.async { controller.show() } }
   }
 
   func applicationDidBecomeActive(_ notification: Notification) {
