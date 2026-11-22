@@ -52,8 +52,6 @@ Turn Open at Login off with the menu bar item's **Open at Login**, or from Termi
 
 Select a folder to see a contact sheet and filenames. Press **→** to enter it, or click a thumbnail to enter with that file selected. In the practice project, you can Command-click the PNG and SVG in **exports**, choose **Move…**, then choose **delivery**. **Edit → Undo Move** puts them back.
 
-![Finger browsing the Fold Studies practice project, with exports selected and its artwork visible](docs/Finger.png)
-
 | Action | Shortcut |
 | --- | --- |
 | Select, extend a range, select discontiguous rows | ↑ / ↓, Shift–arrow, Command–click |
