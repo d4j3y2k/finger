@@ -184,13 +184,15 @@ enum PreviewReader {
         rows: entries.map(item), media: media.map(item), total: total, linkTarget: linkTarget))
   }
 
-  static func readText(_ url: URL) throws -> (text: String, partial: Bool)? {
+  /// Defaults suit the inspector. ContentPreview reads up to 512 KB and 10,000 lines.
+  static func readText(_ url: URL, limit: Int = 12_288, maxLines: Int = 160) throws -> (
+    text: String, partial: Bool
+  )? {
     let fd = open(url.path, O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC)
     if fd < 0 { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
     defer { close(fd) }
     var attributes = stat()
     guard fstat(fd, &attributes) == 0, (attributes.st_mode & S_IFMT) == S_IFREG else { return nil }
-    let limit = 12_288
     var buffer = [UInt8](repeating: 0, count: limit + 1)
     let count = Darwin.read(fd, &buffer, buffer.count)
     if count < 0 { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
@@ -201,7 +203,7 @@ enum PreviewReader {
       var lines = 0
       for index in text.indices where text[index].isNewline {
         lines += 1
-        if lines == 160, text.index(after: index) < text.endIndex {
+        if lines == maxLines, text.index(after: index) < text.endIndex {
           return (String(text[...index]), true)
         }
       }
