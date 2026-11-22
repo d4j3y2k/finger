@@ -14,7 +14,8 @@ final class FilingCoordinator {
   let evidence: FilingEvidenceSource
   let memory: FilingMemory
   let log: FilingLog
-  let defaults: UserDefaults
+  /// Recent destinations, shared with the window's Move.
+  let preferences: FilingPreferences
   var now: () -> Date = Date.init
 
   /// Paths whose verdicts or local candidates changed. Main thread.
@@ -41,7 +42,7 @@ final class FilingCoordinator {
   init(
     home: String = NSHomeDirectory(), credentials: FilingCredentials, transport: FilingTransport,
     evidence: FilingEvidenceSource, memory: FilingMemory = .shared, log: FilingLog = .shared,
-    defaults: UserDefaults = .standard
+    preferences: FilingPreferences = UserDefaults.standard
   ) {
     let home = home.count > 1 && home.hasSuffix("/") ? String(home.dropLast()) : home
     self.home = home
@@ -51,7 +52,7 @@ final class FilingCoordinator {
     self.evidence = evidence
     self.memory = memory
     self.log = log
-    self.defaults = defaults
+    self.preferences = preferences
     NotificationCenter.default.addObserver(
       self, selector: #selector(credentialsChanged), name: FilingCredentials.changed, object: credentials)
   }
@@ -153,7 +154,7 @@ final class FilingCoordinator {
   // MARK: - Gathering candidates
 
   private var recentDestinations: [String] {
-    FolderReferences.unique(defaults.stringArray(forKey: "recentDestinations") ?? [], limit: 12)
+    FolderReferences.unique(preferences.stringArray(forKey: "recentDestinations") ?? [], limit: 12)
   }
 
   private func prepare(_ key: FilingKey, host: String?) {

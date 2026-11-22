@@ -233,25 +233,33 @@ private func check(_ ok: Bool, _ label: String, _ detail: @autoclosure () -> Any
   print("ok -", label)
 }
 
-private func freshDefaults() -> UserDefaults {
-  let name = "finger.filing.checks." + UUID().uuidString
-  suites.append(name)
-  return UserDefaults(suiteName: name)!
+/// Filing's preferences in memory, so the checks create no preference domains.
+private final class MemoryPreferences: FilingPreferences {
+  private var values: [String: Any] = [:]
+  private let lock = NSLock()
+  func data(forKey key: String) -> Data? {
+    lock.lock()
+    defer { lock.unlock() }
+    return values[key] as? Data
+  }
+  func stringArray(forKey key: String) -> [String]? {
+    lock.lock()
+    defer { lock.unlock() }
+    return values[key] as? [String]
+  }
+  func set(_ value: Any?, forKey key: String) {
+    lock.lock()
+    defer { lock.unlock() }
+    values[key] = value
+  }
 }
-private var suites: [String] = []
+
 private var fixtures: [String] = []
 
-/// Removes the fixtures and the checks' own defaults, on success or failure.
+/// Removes the fixtures, on success or failure.
 private func cleanUp() {
   for root in fixtures { try? FileManager.default.removeItem(atPath: root) }
   fixtures.removeAll()
-  let preferences = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Preferences")
-  for suite in suites {
-    UserDefaults.standard.removePersistentDomain(forName: suite)
-    // cfprefsd leaves an empty plist behind.
-    try? FileManager.default.removeItem(at: preferences.appendingPathComponent(suite + ".plist"))
-  }
-  suites.removeAll()
 }
 
 private func setWhereFroms(_ path: String, _ urls: [String]) {
@@ -417,7 +425,7 @@ private func coordinator(
   let credentials = FilingCredentials(store: store, environment: environment)
   return FilingCoordinator(
     home: root, credentials: credentials, transport: jev, evidence: evidence,
-    memory: FilingMemory(defaults: freshDefaults()), log: log, defaults: freshDefaults())
+    memory: FilingMemory(preferences: MemoryPreferences()), log: log, preferences: MemoryPreferences())
 }
 
 // MARK: - Checks
@@ -947,7 +955,7 @@ private func panelChecks(_ root: String, shots: String?) {
   check(filing.canUndo, "the move has a receipt")
   check(log.pairs.first?.signal == "You moved Invoice 1121.pdf to invoices" && log.pairs.first?.sent == FilingLog.staysHere, "the log notes the move, which stays here")
   check(coordinator.memory.entries.first.map { $0.name == "Invoice 1121.pdf" && $0.host == "billing.harborprint.co" && $0.folder == studies + "/invoices" } == true, "Finger remembers where it filed it")
-  check(coordinator.defaults.stringArray(forKey: "recentDestinations")?.first == studies + "/invoices", "and the window's Move sees it as a recent destination")
+  check(coordinator.preferences.stringArray(forKey: "recentDestinations")?.first == studies + "/invoices", "and the window's Move sees it as a recent destination")
   mark = settled
   key(6, "z", .command)
   wait("undone") { settled > mark }

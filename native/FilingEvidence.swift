@@ -65,6 +65,17 @@ final class SpotlightFilingEvidence: FilingEvidenceSource {
   }
 }
 
+/// Where filing keeps what it remembers between launches: the app's
+/// UserDefaults, or an in-memory store in checks, which then create no
+/// preference domains.
+protocol FilingPreferences: AnyObject {
+  func data(forKey key: String) -> Data?
+  func stringArray(forKey key: String) -> [String]?
+  func set(_ value: Any?, forKey key: String)
+}
+
+extension UserDefaults: FilingPreferences {}
+
 /// Where Finger has filed things, so the next suggestion can follow. It holds
 /// names, websites and folders, stays on this Mac and is never sent.
 final class FilingMemory {
@@ -75,31 +86,31 @@ final class FilingMemory {
     let date: Date
   }
 
-  static let shared = FilingMemory(defaults: .standard)
-  private let defaults: UserDefaults
+  static let shared = FilingMemory(preferences: UserDefaults.standard)
+  private let preferences: FilingPreferences
   private let key: String
   private let lock = NSLock()
   private let limit = 300
 
-  init(defaults: UserDefaults, key: String = "filingMemory") {
-    self.defaults = defaults
+  init(preferences: FilingPreferences, key: String = "filingMemory") {
+    self.preferences = preferences
     self.key = key
   }
 
   var entries: [Entry] {
     lock.lock()
     defer { lock.unlock() }
-    guard let data = defaults.data(forKey: key) else { return [] }
+    guard let data = preferences.data(forKey: key) else { return [] }
     return (try? JSONDecoder().decode([Entry].self, from: data)) ?? []
   }
 
   func remember(name: String, host: String?, folder: String, at date: Date = Date()) {
     lock.lock()
     defer { lock.unlock() }
-    var list = (defaults.data(forKey: key)).flatMap { try? JSONDecoder().decode([Entry].self, from: $0) } ?? []
+    var list = preferences.data(forKey: key).flatMap { try? JSONDecoder().decode([Entry].self, from: $0) } ?? []
     list.insert(Entry(name: name, host: host, folder: folder, date: date), at: 0)
     if list.count > limit { list.removeLast(list.count - limit) }
-    if let data = try? JSONEncoder().encode(list) { defaults.set(data, forKey: key) }
+    if let data = try? JSONEncoder().encode(list) { preferences.set(data, forKey: key) }
   }
 
   /// The browser's moves, source → destination. Reads where each came from off the main thread.

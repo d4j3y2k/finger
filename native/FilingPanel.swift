@@ -263,11 +263,11 @@ final class FilingPanel {
   /// Every folder the list can offer, read off the main thread.
   private func loadFolders(for file: PanelFile, local: FilingGathered?) {
     let home = self.home
-    let defaults = coordinator.defaults
+    let preferences = coordinator.preferences
     let recent =
       FolderReferences.unique(
-        (defaults.stringArray(forKey: "recentDestinations") ?? [])
-          + (defaults.stringArray(forKey: "recentFolders") ?? []), limit: 24)
+        (preferences.stringArray(forKey: "recentDestinations") ?? [])
+          + (preferences.stringArray(forKey: "recentFolders") ?? []), limit: 24)
     let finish: (FilingGathered?) -> Void = { [weak self] gathered in
       self?.listing.async {
         let ownProject = FilingGather.project(of: file.parent, home: home)
@@ -462,9 +462,9 @@ final class FilingPanel {
         }
         relocated[file.path] = destination
         coordinator.memory.remember(name: movedName, host: host, folder: folder)
-        let defaults = coordinator.defaults
-        let last = defaults.stringArray(forKey: "recentDestinations") ?? []
-        defaults.set(FolderReferences.unique([folder] + last, limit: 12), forKey: "recentDestinations")
+        let preferences = coordinator.preferences
+        let last = preferences.stringArray(forKey: "recentDestinations") ?? []
+        preferences.set(FolderReferences.unique([folder] + last, limit: 12), forKey: "recentDestinations")
         coordinator.log.add("You moved \(file.name) to \(folderName)", sent: FilingLog.staysHere)
         coordinator.forget(file.path)
         coordinator.scan()
