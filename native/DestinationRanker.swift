@@ -188,19 +188,20 @@ enum DestinationRanker {
     let inProject = Set(options)
     return (options, candidates.filter { !inProject.contains($0) })
   }
-  static func jevRequest(sources: [URL], candidates: [URL], key: String) throws -> URLRequest {
+  static func jevRequest(sources: [URL], candidates: [URL], key: String, home: String = NSHomeDirectory())
+    throws -> URLRequest
+  {
     let options = Array(candidates.prefix(jevCandidateLimit))
     let sourceNames = sources.prefix(16).map { String($0.lastPathComponent.prefix(96)) }
-    let destinations = options.enumerated().map {
-      ["id": "d\($0.offset)", "folder": String($0.element.lastPathComponent.prefix(96))]
+    // The home folder is named for the account. Jev hears "Home", as filing does.
+    let homePath = URL(fileURLWithPath: home).standardizedFileURL.path
+    let folderNames = options.map {
+      $0.standardizedFileURL.path == homePath ? "Home" : String($0.lastPathComponent.prefix(96))
     }
+    let destinations = folderNames.enumerated().map { ["id": "d\($0.offset)", "folder": $0.element] }
     let criteria = Dictionary(
-      uniqueKeysWithValues: options.indices.map { index in
-        (
-          "d\(index)",
-          "Move these files into the folder named "
-            + String(options[index].lastPathComponent.prefix(96)) + "."
-        )
+      uniqueKeysWithValues: folderNames.indices.map { index in
+        ("d\(index)", "Move these files into the folder named " + folderNames[index] + ".")
       })
     let questions: [String: Any] = [
       "destination": [

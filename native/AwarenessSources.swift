@@ -578,14 +578,40 @@ final class AwarenessGitSource: AwarenessSource {
     return nil
   }
 
-  /// `git status` entries, or nil when git doesn't answer within three seconds.
+  /// True when the repository's own config could make `git status` run a
+  /// program. A repo that arrives in a zip, by AirDrop or in a shared folder
+  /// brings its .git/config along, and a clean or process filter named there
+  /// runs during status. An include could bring one in from elsewhere. The
+  /// match is deliberately broad: a false alarm only costs the changed-file
+  /// count. Submodules are skipped with --ignore-submodules, and fsmonitor
+  /// is turned off on the command line.
+  static func configRunsCommands(_ root: String) -> Bool {
+    guard let gitdir = gitdir(root) else { return true }
+    var files = [gitdir + "/config", gitdir + "/config.worktree"]
+    // A linked worktree's gitdir names the shared one in "commondir".
+    if let common = try? String(contentsOfFile: gitdir + "/commondir", encoding: .utf8) {
+      let path = common.trimmingCharacters(in: .whitespacesAndNewlines)
+      let dir = path.hasPrefix("/") ? path : (gitdir as NSString).appendingPathComponent(path)
+      files += [dir + "/config", dir + "/config.worktree"]
+    }
+    for file in files where FileManager.default.fileExists(atPath: file) {
+      guard let data = FileManager.default.contents(atPath: file), data.count <= 1 << 20 else { return true }
+      let text = String(decoding: data, as: UTF8.self).lowercased()
+      if text.contains("filter") || text.contains("include") { return true }
+    }
+    return false
+  }
+
+  /// `git status` entries, or nil when git doesn't answer within three seconds
+  /// or the repository's config could make status run a program.
   func dirtyCount(_ root: String, git: String) -> Int? {
+    guard !Self.configRunsCommands(root) else { return nil }
     statusRuns += 1
     let process = Process()
     process.executableURL = URL(fileURLWithPath: git)
     process.arguments = [
       "-C", root, "--no-optional-locks", "-c", "core.fsmonitor=false", "status", "--porcelain", "-z",
-      "--untracked-files=normal",
+      "--untracked-files=normal", "--ignore-submodules=all",
     ]
     process.environment = ["GIT_OPTIONAL_LOCKS": "0", "LC_ALL": "C", "PATH": "/usr/bin:/bin", "HOME": NSHomeDirectory()]
     let pipe = Pipe()

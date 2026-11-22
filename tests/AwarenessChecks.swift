@@ -102,6 +102,7 @@ private enum AwarenessChecks {
     registry()
     center()
     menu()
+    untrustedGit()
     if CommandLine.arguments.count >= 2 {
       core = try TestCore(URL(fileURLWithPath: CommandLine.arguments[1]))
       defer { core.finish() }
@@ -530,6 +531,55 @@ private func menu() {
   check(menu.documents.state == .off && !menu.documents.isEnabled, "and App Documents with it")
   menu.menu.performActionForItem(at: menu.menu.index(of: menu.activity))
   check(settings.useActivity && menu.activity.state == .on && menu.documents.isEnabled, "and back on")
+}
+
+// MARK: - Git in a repo that arrived from elsewhere
+
+// A repo unpacked from a zip keeps its .git/config, and a clean filter named
+// there runs during `git status`. Finger reads the config first and leaves such
+// a repo's changed-file count unknown. This uses the real git, when there is one.
+private func untrustedGit() {
+  let base = NSTemporaryDirectory() + "finger-git-checks-\(getpid())"
+  defer { try? FileManager.default.removeItem(atPath: base) }
+  let repo = base + "/repo"
+  let included = base + "/included"
+  let marker = base + "/filter-ran"
+  try! FileManager.default.createDirectory(atPath: repo, withIntermediateDirectories: true)
+  try! FileManager.default.createDirectory(atPath: included, withIntermediateDirectories: true)
+  if let git = AwarenessGitSource.findGit() {
+    func run(_ dir: String, _ args: [String]) {
+      let process = Process()
+      process.executableURL = URL(fileURLWithPath: git)
+      process.arguments = ["-C", dir] + args
+      process.standardOutput = FileHandle.nullDevice
+      process.standardError = FileHandle.nullDevice
+      try! process.run()
+      process.waitUntilExit()
+    }
+    run(repo, ["init", "-q"])
+    try! "hello\n".write(toFile: repo + "/a.txt", atomically: true, encoding: .utf8)
+    try! "more\n".write(toFile: repo + "/b.txt", atomically: true, encoding: .utf8)
+    run(repo, ["add", "a.txt"])
+    let source = AwarenessGitSource(git: git)
+    check(!AwarenessGitSource.configRunsCommands(repo), "a plain repo's config runs nothing")
+    check(source.dirtyCount(repo, git: git) == 2, "and Finger counts its two changed files")
+
+    run(repo, ["config", "filter.x.clean", "touch '\(marker)'; cat"])
+    try! "* filter=x\n".write(toFile: repo + "/.gitattributes", atomically: true, encoding: .utf8)
+    // Same text in a new file, as after unzipping: git must read it again, through the filter.
+    try! "hello\n".write(toFile: repo + "/a.txt", atomically: true, encoding: .utf8)
+    check(AwarenessGitSource.configRunsCommands(repo), "a config that names a filter is caught")
+    check(source.dirtyCount(repo, git: git) == nil, "so its changed-file count stays unknown")
+    check(!FileManager.default.fileExists(atPath: marker), "and the filter never ran")
+    run(repo, ["status", "--porcelain"])
+    check(FileManager.default.fileExists(atPath: marker), "where a plain git status would have run it")
+
+    run(included, ["init", "-q"])
+    run(included, ["config", "include.path", base + "/elsewhere"])
+    check(AwarenessGitSource.configRunsCommands(included), "an include is caught too")
+  } else {
+    print("   skipped: no git on this Mac")
+  }
 }
 
 // MARK: - The panel

@@ -62,6 +62,17 @@ struct DestinationRankerChecks {
     let destinations = try required(state["destinations"] as? [[String: String]])
     precondition(names == sources.map(\.lastPathComponent))
     precondition(destinations.compactMap { $0["folder"] } == candidates.map(\.lastPathComponent))
+    // The home folder is named for the account; Jev hears "Home" instead.
+    let fromHome = try DestinationRanker.jevRequest(
+      sources: sources, candidates: [URL(fileURLWithPath: "/Users/someone", isDirectory: true), delivery],
+      key: "test-value", home: "/Users/someone")
+    let homeBody = try required(fromHome.httpBody)
+    let homeState = try required(
+      (JSONSerialization.jsonObject(with: homeBody) as? [String: Any])?["state"] as? [String: Any])
+    let homeFolders = try required(homeState["destinations"] as? [[String: String]]).compactMap { $0["folder"] }
+    precondition(homeFolders == ["Home", delivery.lastPathComponent], "home is sent as Home")
+    precondition(
+      !String(decoding: homeBody, as: UTF8.self).contains("someone"), "the account name never leaves the Mac")
     let encoded = String(decoding: data, as: UTF8.self)
     precondition(
       !encoded.contains("private-client") && !encoded.contains("test-value"),

@@ -1032,14 +1032,25 @@ enum MarkdownRenderer {
       out.append(NSAttributedString(string: plain, attributes: attrs))
       plain = ""
     }
+    // The first match at or after `from`. Scanning afresh from every marker
+    // made a crafted paragraph quadratic, minutes for one file. The scan only
+    // moves forward, so an earlier answer for the same marker still holds when
+    // it lies at or after `from`, and the work stays linear.
+    var found: [[Character]: (from: Int, at: Int?)] = [:]
     func find(_ s: [Character], from: Int) -> Int? {
       guard !s.isEmpty, from < chars.count else { return nil }
+      if let hit = found[s], hit.from <= from, hit.at.map({ $0 >= from }) ?? true { return hit.at }
       var k = from
+      var at: Int?
       while k + s.count <= chars.count {
-        if Array(chars[k..<(k + s.count)]) == s { return k }
+        if chars[k] == s[0], chars[k..<(k + s.count)].elementsEqual(s) {
+          at = k
+          break
+        }
         k += 1
       }
-      return nil
+      found[s] = (from, at)
+      return at
     }
     while i < chars.count {
       let c = chars[i]

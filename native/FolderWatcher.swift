@@ -63,14 +63,17 @@ final class FolderWatcher {
     task.addExecutionBlock { [weak self, weak task] in
       guard task?.isCancelled == false else { return }
       var watching = path
-      var fd = Darwin.open(watching, O_EVTONLY | O_CLOEXEC)
+      // O_NONBLOCK: opening a FIFO would otherwise wait for a writer forever,
+      // holding one of the four workers. The descriptor is only watched, never read.
+      let flags = O_EVTONLY | O_CLOEXEC | O_NONBLOCK
+      var fd = Darwin.open(watching, flags)
       // Editors and exporters often replace a file or folder in two steps.
       // Watch its closest existing parent while the requested name is absent.
       while fd < 0 && (errno == ENOENT || errno == ENOTDIR) {
         let parent = (watching as NSString).deletingLastPathComponent
         guard !parent.isEmpty, parent != watching, task?.isCancelled == false else { break }
         watching = parent
-        fd = Darwin.open(watching, O_EVTONLY | O_CLOEXEC)
+        fd = Darwin.open(watching, flags)
       }
       let descriptor = fd
       let fallback = watching != path
