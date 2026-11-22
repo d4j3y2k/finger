@@ -31,6 +31,7 @@ extension Browser {
       ("F2  /  ⌘Return", "Rename"),
       ("⇧⌘M  /  ⇧⌘C", "Move / copy to a folder"), ("⌘X  /  ⌘C  /  ⌘V", "Cut / copy / paste files"),
       ("⌘Z  /  ⇧⌘Z", "Undo / redo a move or rename"), ("⇧⌘.", "Show or hide hidden files"),
+      ((PanelShortcuts.shared?.current ?? .standard).display, "Show or hide the search panel"),
     ]
     let view = Flipped()
     view.frame = NSRect(x: 0, y: 0, width: 378, height: CGFloat(shortcuts.count) * 22)

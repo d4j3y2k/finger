@@ -4,7 +4,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
   let engine: Engine
   var browser: Browser?
   private var panel: PanelController?
-  private var hotKey: PanelHotKey?
+  private var shortcuts: PanelShortcuts?
   private let requests = OpenItemRequests()
 
   init(engine: Engine) { self.engine = engine }
@@ -28,14 +28,19 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     startPanel(show: CommandLine.arguments.contains("--panel"))
   }
 
-  /// The summonable search panel. ⌥Space toggles it from any app.
+  /// The summonable search panel. ⌃Space toggles it from any app; Finger ›
+  /// Panel Shortcut… changes that.
   private func startPanel(show: Bool) {
     let controller = PanelController(engine: engine)
     panel = controller
     PanelController.shared = controller
-    hotKey = PanelHotKey { [weak controller] in controller?.toggle() }
-    if hotKey?.registered != true {
-      NSLog("Finger: ⌥Space is taken by another app (status %d)", Int(hotKey?.status ?? 0))
+    let shortcuts = PanelShortcuts { [weak controller] in controller?.toggle() }
+    self.shortcuts = shortcuts
+    PanelShortcuts.shared = shortcuts
+    controller.shortcuts = shortcuts
+    let status = shortcuts.start()
+    if status != noErr {
+      NSLog("Finger: couldn’t register %@ for the panel (status %d)", shortcuts.current.display, Int(status))
     }
     if show { DispatchQueue.main.async { controller.show() } }
   }

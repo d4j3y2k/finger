@@ -72,7 +72,7 @@ private let readme = """
 
   ## Keys
 
-  - **⌥ Space** shows or hides Finger
+  - **⌃ Space** shows or hides Finger
   - **Return** opens the selection, *Space* opens Quick Look
   - `⌘↩` shows it in Finder
     - nested items keep their place
@@ -643,7 +643,7 @@ private enum ContentPreviewChecks {
         // Rendered, not raw: no heading marks, bold stars or backticks.
         check(!shown.contains("# Finger") && !shown.contains("**") && !shown.contains("`scripts"),
           "md shows raw Markdown")
-        check(shown.contains("•\t⌥ Space shows or hides Finger"), "md list item")
+        check(shown.contains("•\t⌃ Space shows or hides Finger"), "md list item")
         check(shown.contains("scripts/check.sh   # full suite"), "md fenced block")
       },
       Fixture(name: "PreviewPane.swift", match: nil, everySize: true) { p in

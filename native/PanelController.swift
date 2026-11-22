@@ -2,7 +2,7 @@ import AppKit
 import Quartz
 
 /// Finger's summonable search-and-browse panel. Search for a file or folder,
-/// step into a folder, and type to narrow. ⌥Space toggles it.
+/// step into a folder, and type to narrow. ⌃Space toggles it (Finger › Panel Shortcut…).
 final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSWindowDelegate,
   NSTableViewDataSource, NSTableViewDelegate, QLPreviewPanelDataSource, QLPreviewPanelDelegate
 {
@@ -15,6 +15,20 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
   let home: String
   let place: PanelPlace
   var preview: PanelPreview { didSet { installPreview(oldValue) } }
+
+  /// The shortcut that shows and hides the panel. Nil in checks, which use the default.
+  var shortcuts: PanelShortcuts? {
+    didSet {
+      NotificationCenter.default.removeObserver(self, name: PanelShortcuts.changed, object: nil)
+      if let shortcuts {
+        NotificationCenter.default.addObserver(
+          self, selector: #selector(shortcutChanged), name: PanelShortcuts.changed, object: shortcuts)
+      }
+      updateFooter()
+    }
+  }
+  var shortcut: PanelShortcut { shortcuts?.current ?? .standard }
+  @objc func shortcutChanged() { updateFooter() }
 
   /// Hook for the "Working On" section, listed first on Home. Nil in phase 1.
   var workingOn: (() -> [PanelFile])?
@@ -785,7 +799,10 @@ final class PanelController: NSObject, PanelKeyHandler, NSTextFieldDelegate, NSW
       let busy = !text.isEmpty && searching(folder, text)
       footer.status = place.abbreviated(folder) + (busy ? " · Searching…" : "")
     } else if text.isEmpty {
-      footer.status = "⌥Space shows and hides this panel"
+      footer.status =
+        shortcuts.map { !$0.registered } == true
+        ? "\(shortcut.display) isn’t available · Finger › Panel Shortcut…"
+        : "\(shortcut.display) shows and hides this panel"
     } else if searching(home, text) {
       footer.status = "Searching…"
     } else {

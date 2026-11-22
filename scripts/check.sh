@@ -24,6 +24,9 @@ swift=(xcrun swiftc -swift-version 5 -module-cache-path "$PWD/build/ModuleCache"
 "$stage/opens"
 "${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/FindPanelChecks.swift -o "$stage/find"
 "$stage/find" "${CARGO_TARGET_DIR:-target}/release/finger-core"
+# The panel's shortcut: parsing, saving, live re-registration and its recorder window.
+"${swift[@]}" native/PanelShortcut.swift native/PanelHotKey.swift tests/PanelShortcutChecks.swift -o "$stage/shortcut"
+"$stage/shortcut"
 # The summonable panel, driven by keys over a fixture home. It writes light
 # and dark PNGs of the main states to build/panel-checks.
 "${swift[@]}" native/*.swift bridge/AgentWire.swift bridge/AppEndpoint.swift tests/PanelChecks.swift -o "$stage/panel"

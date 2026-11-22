@@ -248,7 +248,7 @@ private func makeFixture() -> String {
 
     ## Keys
 
-    - **⌥ Space** shows or hides Finger
+    - **⌃ Space** shows or hides Finger
     - **↩** opens, **⌫** goes up a folder
 
     """
@@ -452,6 +452,7 @@ private func run(shots: String?) {
 
   // Home: Just Arrived and Recents, newest first.
   wait("home lists") { c.sectionTitles == ["Just Arrived", "Recents"] }
+  check(c.footer.status == "⌃Space shows and hides this panel", "Home names the default shortcut", c.footer.status)
   check(c.items(in: "Just Arrived").map(\.file.name) == ["Invoice 1121.pdf"], "Just Arrived lists the new download")
   check(
     c.items(in: "Recents").map(\.file.name).prefix(3) == ["launcher.rs", "Print notes.txt", "README.md"],

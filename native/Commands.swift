@@ -399,6 +399,8 @@ extension Browser {
       withTitle: "About Finger", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
       keyEquivalent: "")
     app.addItem(.separator())
+    app.addItem(CommandItem("Panel Shortcut…") { PanelShortcuts.shared?.showWindow() })
+    app.addItem(.separator())
     app.addItem(
       withTitle: "Hide Finger", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
     app.addItem(
@@ -524,7 +526,10 @@ extension Browser {
       withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
     win.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
     win.addItem(.separator())
-    win.addItem(CommandItem("Show Finger Panel") { PanelController.shared?.show() })
+    let showPanel = CommandItem("Show Finger Panel") { PanelController.shared?.show() }
+    showPanel.identifier = PanelShortcuts.menuItem
+    PanelShortcuts.shared?.decorate(showPanel)
+    win.addItem(showPanel)
     let help = section("Help")
     help.addItem(
       CommandItem("Keyboard Shortcuts…", key: "?", mask: [.command]) { [weak self] in

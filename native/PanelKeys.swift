@@ -9,6 +9,11 @@ extension PanelController {
     guard panel.isVisible else { return false }
     finishMotion()
     if let editor = field.currentEditor() as? NSTextView, editor.hasMarkedText() { return false }
+    // The panel's own shortcut hides it, should it reach the panel.
+    if shortcut.matches(event) {
+      hide()
+      return true
+    }
     if waitingForSlash {
       heldKeys.append(event)
       return true
@@ -60,11 +65,7 @@ extension PanelController {
       if folder != nil { goUp() }
       return true
     case 49:  // space
-      if option {
-        hide()
-        return true
-      }
-      if command || control { return false }
+      if command || control || option { return false }
       if shift || text.isEmpty {
         toggleQuickLook()
         return true
