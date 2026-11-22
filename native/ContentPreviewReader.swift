@@ -255,6 +255,7 @@ enum ContentPreviewReader {
       body = prose(text)
     }
     if ticket.cancelled { return nil }
+    preferTextGlyphs(body)
     let matches = needle.map { highlight(body, $0) } ?? []
     var notes: [String] = []
     if partial { notes.append("Showing the first \(lines.formatted()) lines") }
@@ -277,6 +278,46 @@ enum ContentPreviewReader {
     return ContentText(
       style: style, text: NSTextStorage(attributedString: body), lineStarts: style == .code ? starts : [], lines: lines,
       partial: partial, matches: matches)
+  }
+
+  /// Characters such as ↩ have a text form and an emoji form. When the font
+  /// in use has no glyph for one, fallback picks Apple Color Emoji, so ⌘↩ in
+  /// code shows a color button. Give those characters a text font that has
+  /// the glyph instead, unless the text asks for emoji with U+FE0F.
+  static func preferTextGlyphs(_ text: NSMutableAttributedString) {
+    func has(_ font: NSFont, _ scalar: Unicode.Scalar) -> Bool {
+      var units = Array(String(scalar).utf16)
+      var glyphs = [CGGlyph](repeating: 0, count: units.count)
+      return CTFontGetGlyphsForCharacters(font, &units, &glyphs, units.count)
+    }
+    var chosen: [String: NSFont] = [:]
+    var offset = 0
+    var scalars = text.string.unicodeScalars.makeIterator()
+    var current = scalars.next()
+    text.beginEditing()
+    while let scalar = current {
+      let next = scalars.next()
+      let length = scalar.utf16.count
+      if scalar.value >= 0xA9, scalar.properties.isEmoji, !scalar.properties.isEmojiPresentation,
+        next?.value != 0xFE0F,
+        let font = text.attribute(.font, at: offset, effectiveRange: nil) as? NSFont,
+        !has(font, scalar)
+      {
+        let key = "\(font.fontName) \(font.pointSize) \(scalar.value)"
+        let bold = font.fontDescriptor.symbolicTraits.contains(.bold)
+        let candidates = [
+          NSFont.systemFont(ofSize: font.pointSize, weight: bold ? .semibold : .regular),
+          NSFont(name: "AppleSymbols", size: font.pointSize),
+        ]
+        if let replacement = chosen[key] ?? candidates.compactMap({ $0 }).first(where: { has($0, scalar) }) {
+          chosen[key] = replacement
+          text.addAttribute(.font, value: replacement, range: NSRange(location: offset, length: length))
+        }
+      }
+      offset += length
+      current = next
+    }
+    text.endEditing()
   }
 
   static let lineCharacterLimit = 3_000

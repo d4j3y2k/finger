@@ -752,10 +752,11 @@ private enum ContentPreviewChecks {
     check(before == after, "the zip preview extracted files: \(after)")
     check(notesSeen.contains("vermilion edition"), "notes text")
 
+    try checkSymbols(root, output)
     try checkHostileZip(root)
     try checkLoading(root, output)
     try checkAppearance(root, output)
-    print("checks passed; wrote \(written + 4) PNGs to \(output.path)")
+    print("checks passed; wrote \(written + 10) PNGs to \(output.path)")
   }
 
   /// Every hit has the find highlight, and the first is scrolled into view.
@@ -788,6 +789,58 @@ private enum ContentPreviewChecks {
     check(color(of: "apply(") == ContentInk.call, "call color")
     check(color(of: "@objc") == ContentInk.attribute, "attribute color")
     check(color(of: "3.25") == ContentInk.number, "number color")
+  }
+
+  /// Keyboard symbols and arrows draw as text glyphs, never as color emoji,
+  /// in plain text, code and Markdown (including inline code).
+  static func checkSymbols(_ root: URL, _ output: URL) throws {
+    let symbols = ["⌘", "⌥", "⇧", "⌫", "↩", "⇥", "→", "←"]
+    let line = symbols.joined(separator: " ")
+    let files = [
+      ("keys.txt", "Shortcuts: \(line)\nPress ⌘↩ to open.\n"),
+      ("keys.swift", "// Shortcuts: \(line)\nlet open = \"⌘↩\" // \(line)\n"),
+      ("keys.md", "# Keys ⌘↩\n\nShortcuts: \(line), **⌥→** and `⌘↩` or `\(line)`.\n\n- `⇧⌫` deletes\n"),
+    ]
+    for (name, text) in files {
+      try text.write(to: root.appendingPathComponent(name), atomically: true, encoding: .utf8)
+      for dark in [false, true] {
+        let stage = Stage(size: paneSize, dark: dark)
+        stage.preview.show(root.appendingPathComponent(name), match: nil)
+        wait("load \(name)") { stage.preview.report.kind != .loading }
+        guard let view = stage.preview.textView, let storage = view.textStorage,
+          let layout = view.layoutManager, let container = view.textContainer
+        else { return check(false, "\(name) has no text view") }
+        // Layout settles fonts: a character the font lacks gets a fallback font here.
+        layout.ensureLayout(for: container)
+        let ns = storage.string as NSString
+        var found = Set<String>()
+        for symbol in symbols {
+          var search = NSRange(location: 0, length: ns.length)
+          while true {
+            let hit = ns.range(of: symbol, range: search)
+            if hit.location == NSNotFound { break }
+            let font = storage.attribute(.font, at: hit.location, effectiveRange: nil) as? NSFont
+            let fontName = font?.fontName ?? "none"
+            check(!fontName.localizedCaseInsensitiveContains("emoji"),
+              "\(name): \(symbol) draws with \(fontName)")
+            if let font {
+              var units = Array(symbol.utf16)
+              var glyphs = [CGGlyph](repeating: 0, count: units.count)
+              check(CTFontGetGlyphsForCharacters(font, &units, &glyphs, units.count),
+                "\(name): \(fontName) has no glyph for \(symbol)")
+            }
+            found.insert(symbol)
+            search = NSRange(location: NSMaxRange(hit), length: ns.length - NSMaxRange(hit))
+          }
+        }
+        check(found.count == symbols.count, "\(name): found only \(found.sorted())")
+        let png = output.appendingPathComponent(
+          "keys-\((name as NSString).pathExtension)-\(dark ? "dark" : "light")-pane.png")
+        write(snapshot(stage.window.contentView!), png)
+        stage.window.close()
+      }
+    }
+    print("ok symbols draw as text in text, code and Markdown")
   }
 
   /// A zip whose one entry is nested 30,000 folders deep, and one with a
